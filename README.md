@@ -1,5 +1,7 @@
 # Why Did I Reboot
 
+[![Build](https://github.com/WelFedTed/why-did-i-reboot/actions/workflows/build.yml/badge.svg)](https://github.com/WelFedTed/why-did-i-reboot/actions/workflows/build.yml)
+
 A small Windows desktop app that answers one question: **why did this PC restart?**
 
 It reads the Windows event log, stitches the shutdown and boot records back together, and shows one plain-English card per reboot: who asked for it, whether it was Windows Update, a blue screen (with the STOP code and dump file), a power cut, a forced power-off, or a sleep/wake cycle that never turned into a reboot at all.

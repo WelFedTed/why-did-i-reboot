@@ -1,0 +1,61 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore WhyDidIReboot.slnx
+
+      - name: Build
+        run: dotnet build WhyDidIReboot.slnx -c Release --no-restore -warnaserror
+
+      - name: Smoke test (headless export against the runner's event log)
+        shell: pwsh
+        run: |
+          $exe = 'src/WhyDidIReboot/bin/Release/net8.0-windows/WhyDidIReboot.exe'
+          $p = Start-Process -FilePath $exe -ArgumentList '--export smoke.txt --days all --sleep' -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw "Export exited with $($p.ExitCode)" }
+          $text = Get-Content smoke.txt -Raw
+          if ($text -match '^ERROR:') { throw $text }
+          if ($text -notmatch 'Why Did I Reboot') { throw 'Unexpected report header' }
+          Write-Host "Report is $($text.Length) chars; first lines:"
+          Get-Content smoke.txt -TotalCount 8
+
+      - name: Publish (framework-dependent)
+        run: dotnet publish src/WhyDidIReboot -c Release --no-build -o dist/framework-dependent
+
+      - name: Publish (self-contained single file)
+        run: dotnet publish src/WhyDidIReboot -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/self-contained
+
+      - name: Upload framework-dependent build
+        uses: actions/upload-artifact@v4
+        with:
+          name: WhyDidIReboot-framework-dependent
+          path: dist/framework-dependent
+
+      - name: Upload self-contained build
+        uses: actions/upload-artifact@v4
+        with:
+          name: WhyDidIReboot-win-x64
+          path: dist/self-contained/WhyDidIReboot.exe
