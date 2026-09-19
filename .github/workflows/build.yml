@@ -70,13 +70,13 @@ jobs:
 
     steps:
       - name: Download self-contained build
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: WhyDidIReboot-win-x64
           path: assets/self-contained
 
       - name: Download framework-dependent build
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: WhyDidIReboot-framework-dependent
           path: assets/framework-dependent
