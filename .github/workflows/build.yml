@@ -17,10 +17,10 @@ jobs:
 
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 8.0.x
 
@@ -49,13 +49,13 @@ jobs:
         run: dotnet publish src/WhyDidIReboot -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/self-contained
 
       - name: Upload framework-dependent build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: WhyDidIReboot-framework-dependent
           path: dist/framework-dependent
 
       - name: Upload self-contained build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: WhyDidIReboot-win-x64
           path: dist/self-contained/WhyDidIReboot.exe
