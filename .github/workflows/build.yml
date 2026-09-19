@@ -59,3 +59,47 @@ jobs:
         with:
           name: WhyDidIReboot-win-x64
           path: dist/self-contained/WhyDidIReboot.exe
+
+  release:
+    # Tag pushes matching v* (SemVer) publish a GitHub Release with the built binaries.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download self-contained build
+        uses: actions/download-artifact@v6
+        with:
+          name: WhyDidIReboot-win-x64
+          path: assets/self-contained
+
+      - name: Download framework-dependent build
+        uses: actions/download-artifact@v6
+        with:
+          name: WhyDidIReboot-framework-dependent
+          path: assets/framework-dependent
+
+      - name: Package assets
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item assets/self-contained/WhyDidIReboot.exe "out/WhyDidIReboot-$version-win-x64.exe"
+          Compress-Archive -Path assets/framework-dependent/* -DestinationPath "out/WhyDidIReboot-$version-framework-dependent.zip"
+          Get-ChildItem out
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $version = $tag.TrimStart('v')
+          $notes = "**WhyDidIReboot-$version-win-x64.exe** runs on any 64-bit Windows 10/11 PC with nothing installed.`n" +
+                   "**WhyDidIReboot-$version-framework-dependent.zip** is much smaller but needs the .NET 8 Desktop Runtime."
+          $args = @('release', 'create', $tag, '--repo', '${{ github.repository }}', '--title', "Why Did I Reboot $tag", '--notes', $notes, '--generate-notes')
+          if ($tag -match '-') { $args += '--prerelease' }   # SemVer pre-release, e.g. v0.2.0-beta.1
+          $args += Get-ChildItem out | ForEach-Object { $_.FullName }
+          gh @args
