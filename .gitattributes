@@ -1,0 +1,14 @@
+# Normalise line endings: LF in the repo, native on checkout.
+* text=auto
+
+# Windows-specific files that tooling expects with CRLF.
+*.sln text eol=crlf
+*.slnx text eol=crlf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets.
+*.ico binary
+*.png binary
+*.dmp binary
