@@ -49,6 +49,14 @@ dotnet publish src/WhyDidIReboot -c Release -r win-x64 --self-contained -p:Publi
 
 The app icon is generated from `tools/make-icon.ps1`; run it if `src/WhyDidIReboot/Assets/app.ico` is missing.
 
+## Releasing
+
+1. Describe the changes under a new `## [X.Y.Z] - YYYY-MM-DD` heading in [CHANGELOG.md](CHANGELOG.md) (move items out of *Unreleased*).
+2. Set `<Version>` in `src/WhyDidIReboot/WhyDidIReboot.csproj` and the manifest version in `app.manifest`.
+3. Commit, then tag and push: `git tag -a vX.Y.Z -m "Why Did I Reboot X.Y.Z" && git push origin vX.Y.Z`.
+
+The workflow builds both flavours, copies that changelog section into the GitHub Release notes, and attaches the binaries. It fails if the changelog has no section for the tag.
+
 ## Command-line export
 
 ```bash

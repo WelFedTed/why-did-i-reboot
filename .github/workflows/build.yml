@@ -69,6 +69,29 @@ jobs:
       contents: write
 
     steps:
+      - name: Check out (for CHANGELOG.md)
+        uses: actions/checkout@v5
+
+      - name: Extract release notes from CHANGELOG.md
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          $lines = Get-Content CHANGELOG.md
+          $start = ($lines | Select-String -Pattern "^## \[$([regex]::Escape($version))\]" | Select-Object -First 1).LineNumber
+          if (-not $start) { throw "CHANGELOG.md has no '## [$version]' section. Add one before tagging v$version." }
+          $body = @()
+          for ($i = $start; $i -lt $lines.Count; $i++) {
+            if ($lines[$i] -match '^## ') { break }
+            $body += $lines[$i]
+          }
+          $body = ($body -join "`n").Trim()
+          if (-not $body) { throw "The '## [$version]' section in CHANGELOG.md is empty." }
+          $body += "`n`n## Downloads`n" +
+                   "- **WhyDidIReboot-$version-win-x64.exe** runs on any 64-bit Windows 10/11 PC with nothing installed.`n" +
+                   "- **WhyDidIReboot-$version-framework-dependent.zip** is much smaller but needs the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)."
+          Set-Content -Path release-notes.md -Value $body
+          Write-Host $body
+
       - name: Download self-contained build
         uses: actions/download-artifact@v8
         with:
@@ -96,10 +119,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = '${{ github.ref_name }}'
-          $version = $tag.TrimStart('v')
-          $notes = "**WhyDidIReboot-$version-win-x64.exe** runs on any 64-bit Windows 10/11 PC with nothing installed.`n" +
-                   "**WhyDidIReboot-$version-framework-dependent.zip** is much smaller but needs the .NET 8 Desktop Runtime."
-          $args = @('release', 'create', $tag, '--repo', '${{ github.repository }}', '--title', "Why Did I Reboot $tag", '--notes', $notes, '--generate-notes')
+          $args = @('release', 'create', $tag, '--repo', '${{ github.repository }}', '--title', "Why Did I Reboot $tag", '--notes-file', 'release-notes.md')
           if ($tag -match '-') { $args += '--prerelease' }   # SemVer pre-release, e.g. v0.2.0-beta.1
           $args += Get-ChildItem out | ForEach-Object { $_.FullName }
           gh @args
