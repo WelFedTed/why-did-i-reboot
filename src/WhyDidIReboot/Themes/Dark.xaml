@@ -1,0 +1,31 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <SolidColorBrush x:Key="WindowBg" Color="#111318"/>
+    <SolidColorBrush x:Key="SurfaceBg" Color="#1B1E25"/>
+    <SolidColorBrush x:Key="SurfaceBorder" Color="#2C3039"/>
+    <SolidColorBrush x:Key="TextPrimary" Color="#E6E8EE"/>
+    <SolidColorBrush x:Key="TextSecondary" Color="#C0C5CF"/>
+    <SolidColorBrush x:Key="TextMuted" Color="#8B919E"/>
+    <SolidColorBrush x:Key="TextFaint" Color="#6B7280"/>
+    <SolidColorBrush x:Key="Accent" Color="#6EA0FF"/>
+    <SolidColorBrush x:Key="AccentHover" Color="#85AEFF"/>
+    <SolidColorBrush x:Key="AccentText" Color="#0B1020"/>
+    <SolidColorBrush x:Key="ControlBg" Color="#23272F"/>
+    <SolidColorBrush x:Key="ControlHover" Color="#2C313B"/>
+    <SolidColorBrush x:Key="ControlPressed" Color="#353B47"/>
+    <SolidColorBrush x:Key="ControlBorder" Color="#3A404C"/>
+    <SolidColorBrush x:Key="BannerBg" Color="#172033"/>
+    <SolidColorBrush x:Key="BannerBorder" Color="#27406B"/>
+    <SolidColorBrush x:Key="BannerText" Color="#BFD3FF"/>
+    <SolidColorBrush x:Key="WarningText" Color="#F0B45A"/>
+    <SolidColorBrush x:Key="ChipOffBg" Color="#23272F"/>
+    <SolidColorBrush x:Key="ChipOffBorder" Color="#343945"/>
+    <SolidColorBrush x:Key="ChipOffText" Color="#6B7280"/>
+    <SolidColorBrush x:Key="ChipOffCount" Color="#3A404C"/>
+    <SolidColorBrush x:Key="EvidenceBg" Color="#14171D"/>
+    <SolidColorBrush x:Key="ScrollThumb" Color="#3F4553"/>
+    <SolidColorBrush x:Key="ScrollThumbHover" Color="#525A6B"/>
+    <SolidColorBrush x:Key="SelectionBg" Color="#2F4A7A"/>
+    <Color x:Key="ShadowColor">#000000</Color>
+    <sys:Double x:Key="ShadowOpacity" xmlns:sys="clr-namespace:System;assembly=mscorlib">0.35</sys:Double>
+</ResourceDictionary>

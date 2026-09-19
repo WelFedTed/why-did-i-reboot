@@ -15,6 +15,8 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = _vm;
+        // The caption bar can only be recoloured once the native window exists.
+        SourceInitialized += (_, _) => ThemeManager.ApplyTitleBar(this);
         Loaded += async (_, _) => await _vm.RefreshAsync();
         PreviewKeyDown += (_, e) =>
         {
@@ -30,18 +32,21 @@ public partial class MainWindow : Window
         {
             Title = "Export reboot history",
             FileName = $"why-did-i-reboot-{Environment.MachineName}-{DateTime.Now:yyyyMMdd-HHmm}",
-            Filter = "Text report (*.txt)|*.txt|CSV spreadsheet (*.csv)|*.csv",
-            DefaultExt = ".txt",
+            Filter = "HTML report (*.html)|*.html|Text report (*.txt)|*.txt|CSV spreadsheet (*.csv)|*.csv",
+            DefaultExt = ".html",
         };
         if (dialog.ShowDialog(this) != true) return;
 
         var entries = _vm.VisibleEntries.ToList();
-        var content = dialog.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
-            ? TextExporter.ToCsv(entries)
-            : TextExporter.ToText(_vm.LastResult, entries, _vm.RangeLabel);
+        var name = dialog.FileName;
+        var content = name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase) ? TextExporter.ToCsv(entries)
+            : name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ? TextExporter.ToText(_vm.LastResult, entries, _vm.RangeLabel)
+            : TextExporter.ToHtml(_vm.LastResult, entries, _vm.RangeLabel);
         try
         {
-            File.WriteAllText(dialog.FileName, content);
+            File.WriteAllText(name, content);
+            if (name.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".htm", StringComparison.OrdinalIgnoreCase))
+                Process.Start(new ProcessStartInfo(name) { UseShellExecute = true });
         }
         catch (Exception ex)
         {

@@ -10,6 +10,10 @@ No installer, no admin rights, no telemetry. It only reads the `System` and `App
 
 ![screenshot](docs/screenshot.png)
 
+Dark mode follows the Windows setting, or can be forced from the header:
+
+![dark mode screenshot](docs/screenshot-dark.png)
+
 ## Features
 
 - **One card per reboot**, newest first, grouped by day, with a colour-coded category:
@@ -18,8 +22,9 @@ No installer, no admin rights, no telemetry. It only reads the `System` and `App
 - **Blue screens decoded**: STOP code, symbolic name (e.g. `DRIVER_POWER_STATE_FAILURE`), a one-line hint about the usual cause, the minidump path, and whether the dump file still exists. Works with or without a dump: a Kernel-Power 41 with a bugcheck code is enough.
 - **Unexpected stops explained**: distinguishes a held power button, power lost while asleep, a firmware-reported hardware error, and a plain freeze/reset.
 - **Live kernel events** (GPU hangs, resource timeouts) that did *not* reboot the machine, because they often precede the crash that does.
-- **Filters**: toggle categories, quick presets (everything / reboots only / problems only), free-text search across titles, KB numbers, STOP codes and raw messages, and a date range from 7 days to the whole log.
-- **Export** what is shown to a `.txt` report or `.csv`, or copy a single entry to the clipboard. Also works headless from the command line.
+- **Filters**: toggle categories, quick presets (everything / reboots only / problems only / none), free-text search across titles, KB numbers, STOP codes and raw messages, and a date range from 7 days to the whole log.
+- **Export** what is shown as a self-contained `.html` report (same cards, collapsible details, follows the reader's light/dark preference, prints cleanly), a `.txt` report or `.csv`, or copy a single entry to the clipboard. Also works headless from the command line.
+- **Light and dark themes**: follows the Windows app theme by default, or pick Light / Dark from the header. The choice is remembered in `%LocalAppData%\WhyDidIReboot\settings.json`.
 - Buttons to jump to Event Viewer or straight to a crash dump in Explorer.
 
 ## Build and run
@@ -47,11 +52,11 @@ The app icon is generated from `tools/make-icon.ps1`; run it if `src/WhyDidIRebo
 ## Command-line export
 
 ```bash
-WhyDidIReboot.exe --export report.txt --days 90
+WhyDidIReboot.exe --export report.html --days 90
 WhyDidIReboot.exe --export report.csv --days all --sleep
 ```
 
-`--days` defaults to 365; `all` reads the entire log. `--sleep` includes sleep/wake cycles, which are hidden by default.
+The extension picks the format: `.html`, `.txt` or `.csv`. `--days` defaults to 365; `all` reads the entire log. `--sleep` includes sleep/wake cycles, which are hidden by default.
 
 ## How it decides
 

@@ -1,5 +1,27 @@
 namespace WhyDidIReboot.Core;
 
+/// <summary>Accent colour per category, tuned separately for light and dark backgrounds.</summary>
+public static class CategoryPalette
+{
+    public sealed record Colors(string Light, string Dark);
+
+    public static readonly IReadOnlyDictionary<RebootCategory, Colors> All = new Dictionary<RebootCategory, Colors>
+    {
+        [RebootCategory.WindowsUpdate] = new("#2563EB", "#6EA0FF"),
+        [RebootCategory.UserInitiated] = new("#16A34A", "#4ADE80"),
+        [RebootCategory.Application] = new("#0D9488", "#2DD4BF"),
+        [RebootCategory.BlueScreen] = new("#DC2626", "#F87171"),
+        [RebootCategory.Unexpected] = new("#EA580C", "#FB923C"),
+        [RebootCategory.CleanNoReason] = new("#6B7280", "#9CA3AF"),
+        [RebootCategory.Unknown] = new("#9CA3AF", "#7C8494"),
+        [RebootCategory.LiveKernelEvent] = new("#CA8A04", "#FACC15"),
+        [RebootCategory.Sleep] = new("#7C3AED", "#A78BFA"),
+    };
+
+    public static string Hex(RebootCategory c, bool dark) =>
+        All.TryGetValue(c, out var v) ? (dark ? v.Dark : v.Light) : (dark ? "#9CA3AF" : "#6B7280");
+}
+
 public static class Format
 {
     public static string Duration(TimeSpan? span)

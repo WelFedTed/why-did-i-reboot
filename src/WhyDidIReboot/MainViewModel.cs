@@ -10,26 +10,30 @@ using WhyDidIReboot.Core;
 namespace WhyDidIReboot;
 
 public sealed record RangeOption(string Label, int? Days);
+public sealed record ThemeOption(string Label, ThemeMode Mode);
 
-/// <summary>Colour and glyph for each category, shared by chips and cards.</summary>
+/// <summary>Glyph per category plus theme-aware brushes, shared by chips and cards.</summary>
 public static class CategoryStyle
 {
-    public sealed record Info(string Label, string Hex, string Glyph, bool DefaultOn);
+    public sealed record Info(string Label, string Glyph, bool DefaultOn);
 
     public static readonly IReadOnlyDictionary<RebootCategory, Info> All = new Dictionary<RebootCategory, Info>
     {
-        [RebootCategory.WindowsUpdate] = new("Windows Update", "#2563EB", "", true),
-        [RebootCategory.UserInitiated] = new("User", "#16A34A", "", true),
-        [RebootCategory.Application] = new("App or service", "#0D9488", "", true),
-        [RebootCategory.BlueScreen] = new("Blue screen", "#DC2626", "", true),
-        [RebootCategory.Unexpected] = new("Power loss / freeze", "#EA580C", "", true),
-        [RebootCategory.CleanNoReason] = new("Clean, no reason", "#6B7280", "", true),
-        [RebootCategory.Unknown] = new("Unknown", "#9CA3AF", "", true),
-        [RebootCategory.LiveKernelEvent] = new("Kernel error (no reboot)", "#CA8A04", "", true),
-        [RebootCategory.Sleep] = new("Sleep / wake", "#7C3AED", "", false),
+        [RebootCategory.WindowsUpdate] = new("Windows Update", "", true),
+        [RebootCategory.UserInitiated] = new("User", "", true),
+        [RebootCategory.Application] = new("App or service", "", true),
+        [RebootCategory.BlueScreen] = new("Blue screen", "", true),
+        [RebootCategory.Unexpected] = new("Power loss / freeze", "", true),
+        [RebootCategory.CleanNoReason] = new("Clean, no reason", "", true),
+        [RebootCategory.Unknown] = new("Unknown", "", true),
+        [RebootCategory.LiveKernelEvent] = new("Kernel error (no reboot)", "", true),
+        [RebootCategory.Sleep] = new("Sleep / wake", "", false),
     };
 
     private static readonly Dictionary<string, SolidColorBrush> BrushCache = new();
+
+    public static SolidColorBrush Brush(RebootCategory c) => Brush(CategoryPalette.Hex(c, ThemeManager.IsDark));
+    public static SolidColorBrush Tint(RebootCategory c) => Brush(CategoryPalette.Hex(c, ThemeManager.IsDark), ThemeManager.IsDark ? 0.18 : 0.12);
 
     public static SolidColorBrush Brush(string hex, double opacity = 1)
     {
@@ -54,19 +58,20 @@ public sealed class CategoryFilter : INotifyPropertyChanged
         var info = CategoryStyle.All[category];
         Label = info.Label;
         Glyph = info.Glyph;
-        Brush = CategoryStyle.Brush(info.Hex);
-        Tint = CategoryStyle.Brush(info.Hex, 0.12);
         _isChecked = info.DefaultOn;
     }
 
     public RebootCategory Category { get; }
     public string Label { get; }
     public string Glyph { get; }
-    public Brush Brush { get; }
-    public Brush Tint { get; }
+    public Brush Brush => CategoryStyle.Brush(Category);
+    public Brush Tint => CategoryStyle.Tint(Category);
 
     public bool IsChecked { get => _isChecked; set { if (_isChecked != value) { _isChecked = value; OnPropertyChanged(); } } }
     public int Count { get => _count; set { if (_count != value) { _count = value; OnPropertyChanged(); } } }
+
+    /// <summary>Called after a theme swap so the chip picks up the new palette.</summary>
+    public void RefreshBrushes() { OnPropertyChanged(nameof(Brush)); OnPropertyChanged(nameof(Tint)); }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? n = null) => PropertyChanged?.Invoke(this, new(n));
@@ -87,6 +92,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly ObservableCollection<RebootEntry> _entries = new();
     private string _searchText = "";
     private RangeOption _range;
+    private ThemeOption _theme;
     private bool _isBusy;
     private string _statusText = "";
     private string _currentSessionText = "";
@@ -114,10 +120,20 @@ public sealed class MainViewModel : INotifyPropertyChanged
         };
         _range = Ranges[3];
 
+        Themes = new[]
+        {
+            new ThemeOption("System theme", ThemeMode.System),
+            new ThemeOption("Light", ThemeMode.Light),
+            new ThemeOption("Dark", ThemeMode.Dark),
+        };
+        _theme = Themes.First(t => t.Mode == ThemeManager.Mode);
+        ThemeManager.Changed += OnThemeChanged;
+
         RefreshCommand = new RelayCommand(async _ => await RefreshAsync(), _ => !IsBusy);
         AllOnCommand = new RelayCommand(_ => { foreach (var c in Categories) c.IsChecked = true; });
         RebootsOnlyCommand = new RelayCommand(_ => { foreach (var c in Categories) c.IsChecked = c.Category is not (RebootCategory.Sleep or RebootCategory.LiveKernelEvent); });
         ProblemsOnlyCommand = new RelayCommand(_ => { foreach (var c in Categories) c.IsChecked = c.Category is RebootCategory.BlueScreen or RebootCategory.Unexpected or RebootCategory.LiveKernelEvent or RebootCategory.Unknown; });
+        NoneCommand = new RelayCommand(_ => { foreach (var c in Categories) c.IsChecked = false; });
         CopyEntryCommand = new RelayCommand(p =>
         {
             if (p is RebootEntry e)
@@ -138,16 +154,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
         });
     }
 
-    public ICommand CopyEntryCommand { get; }
-    public ICommand OpenDumpCommand { get; }
-
     public ObservableCollection<CategoryFilter> Categories { get; }
     public IReadOnlyList<RangeOption> Ranges { get; }
+    public IReadOnlyList<ThemeOption> Themes { get; }
     public ICollectionView View { get; }
     public ICommand RefreshCommand { get; }
     public ICommand AllOnCommand { get; }
     public ICommand RebootsOnlyCommand { get; }
     public ICommand ProblemsOnlyCommand { get; }
+    public ICommand NoneCommand { get; }
+    public ICommand CopyEntryCommand { get; }
+    public ICommand OpenDumpCommand { get; }
 
     public AnalysisResult? LastResult => _last;
     public IEnumerable<RebootEntry> VisibleEntries => View.Cast<RebootEntry>();
@@ -157,6 +174,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         get => _range;
         set { if (!ReferenceEquals(_range, value) && value is not null) { _range = value; OnPropertyChanged(); _ = RefreshAsync(); } }
+    }
+
+    public ThemeOption Theme
+    {
+        get => _theme;
+        set { if (!ReferenceEquals(_theme, value) && value is not null) { _theme = value; OnPropertyChanged(); ThemeManager.SetMode(value.Mode); } }
     }
 
     public string SearchText
@@ -206,6 +229,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    private void OnThemeChanged()
+    {
+        var match = Themes.FirstOrDefault(t => t.Mode == ThemeManager.Mode);
+        if (match is not null && !ReferenceEquals(match, _theme)) { _theme = match; OnPropertyChanged(nameof(Theme)); }
+        foreach (var c in Categories) c.RefreshBrushes();
+        // Cards bind their colours through a converter; a refresh regenerates them with the new palette.
+        View.Refresh();
+        UpdateShown();
+    }
+
     private bool Filter(object o)
     {
         if (o is not RebootEntry e) return false;
@@ -227,7 +260,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
 // ------------------------------------------------------------------ converters
 
-/// <summary>Category → Brush / Tint / Glyph / Label depending on the parameter.</summary>
+/// <summary>Category → Brush / Tint / Glyph / Label depending on the parameter, using the active theme's palette.</summary>
 public sealed class CategoryConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
@@ -235,10 +268,10 @@ public sealed class CategoryConverter : IValueConverter
         if (value is not RebootCategory c || !CategoryStyle.All.TryGetValue(c, out var info)) return Binding.DoNothing;
         return (parameter as string) switch
         {
-            "Tint" => CategoryStyle.Brush(info.Hex, 0.12),
+            "Tint" => CategoryStyle.Tint(c),
             "Glyph" => info.Glyph,
             "Label" => info.Label,
-            _ => CategoryStyle.Brush(info.Hex),
+            _ => CategoryStyle.Brush(c),
         };
     }
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotSupportedException();

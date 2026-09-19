@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:WhyDidIReboot"
         Title="Why Did I Reboot" Width="1120" Height="780" MinWidth="820" MinHeight="520"
-        WindowStartupLocation="CenterScreen" Background="#F3F4F6"
+        WindowStartupLocation="CenterScreen" Background="{DynamicResource WindowBg}"
         FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13" TextOptions.TextFormattingMode="Display"
         UseLayoutRounding="True" SnapsToDevicePixels="True">
     <Window.Resources>
@@ -13,10 +13,15 @@
         <local:TimeConverter x:Key="Time"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
+        <DataTemplate x:Key="LabelTemplate">
+            <TextBlock Text="{Binding Label}"/>
+        </DataTemplate>
+
         <DataTemplate x:Key="EntryCard">
-            <Border Background="White" CornerRadius="10" Margin="0,0,0,10" BorderBrush="#E5E7EB" BorderThickness="1">
+            <Border Background="{DynamicResource SurfaceBg}" CornerRadius="10" Margin="0,0,0,10"
+                    BorderBrush="{DynamicResource SurfaceBorder}" BorderThickness="1">
                 <Border.Effect>
-                    <DropShadowEffect BlurRadius="6" ShadowDepth="1" Opacity="0.06"/>
+                    <DropShadowEffect BlurRadius="6" ShadowDepth="1" Color="{DynamicResource ShadowColor}" Opacity="{DynamicResource ShadowOpacity}"/>
                 </Border.Effect>
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -26,7 +31,6 @@
                     <Border Grid.Column="0" CornerRadius="10,0,0,10" Background="{Binding Category, Converter={StaticResource Cat}}"/>
                     <Grid Grid.Column="1" Margin="16,12,16,12">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
@@ -47,8 +51,8 @@
                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" Foreground="#111827" TextWrapping="Wrap"/>
-                                <TextBlock Text="{Binding Converter={StaticResource Subtitle}}" FontSize="12" Foreground="#6B7280" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding Converter={StaticResource Subtitle}}" FontSize="12" Foreground="{DynamicResource TextMuted}" Margin="0,2,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Border Grid.Column="2" CornerRadius="10" Padding="8,3" Margin="12,0,0,0" VerticalAlignment="Top"
                                     Background="{Binding Category, Converter={StaticResource Cat}, ConverterParameter=Tint}">
@@ -58,7 +62,7 @@
                         </Grid>
 
                         <!-- Summary -->
-                        <TextBlock Grid.Row="1" Text="{Binding Summary}" TextWrapping="Wrap" Foreground="#374151" Margin="50,8,0,0" LineHeight="19"/>
+                        <TextBlock Grid.Row="1" Text="{Binding Summary}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" Margin="50,8,0,0" LineHeight="19"/>
 
                         <!-- Details -->
                         <Expander Grid.Row="2" Header="Details and log records" Style="{StaticResource FlatExpander}" Margin="50,8,0,0">
@@ -71,28 +75,27 @@
                                                     <ColumnDefinition Width="210"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Text="{Binding Key}" Foreground="#6B7280" FontSize="12"/>
-                                                <TextBox Grid.Column="1" Text="{Binding Value, Mode=OneWay}" IsReadOnly="True" BorderThickness="0" Background="Transparent"
-                                                         Padding="0" FontSize="12" Foreground="#111827" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding Key}" Foreground="{DynamicResource TextMuted}" FontSize="12"/>
+                                                <TextBox Grid.Column="1" Text="{Binding Value, Mode=OneWay}" Style="{StaticResource ReadOnlyText}" FontSize="12"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
 
-                                <TextBlock Text="Log records" FontWeight="SemiBold" Foreground="#374151" FontSize="12" Margin="0,10,0,4"/>
+                                <TextBlock Text="Log records" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" FontSize="12" Margin="0,10,0,4"/>
                                 <ItemsControl ItemsSource="{Binding Evidence}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="#F9FAFB" CornerRadius="6" Padding="10,6" Margin="0,0,0,4">
+                                            <Border Background="{DynamicResource EvidenceBg}" CornerRadius="6" Padding="10,6" Margin="0,0,0,4">
                                                 <StackPanel>
-                                                    <TextBlock FontSize="11" Foreground="#6B7280">
+                                                    <TextBlock FontSize="11" Foreground="{DynamicResource TextMuted}">
                                                         <Run Text="{Binding Time, Mode=OneWay, Converter={StaticResource Time}}" FontWeight="SemiBold"/>
                                                         <Run Text="  ·  "/><Run Text="{Binding Log, Mode=OneWay}"/>
                                                         <Run Text="  ·  Event "/><Run Text="{Binding Id, Mode=OneWay}"/>
                                                         <Run Text="  ·  "/><Run Text="{Binding Provider, Mode=OneWay}"/>
                                                     </TextBlock>
-                                                    <TextBox Text="{Binding Message, Mode=OneWay}" IsReadOnly="True" BorderThickness="0" Background="Transparent"
-                                                             Padding="0" Margin="0,2,0,0" FontFamily="Cascadia Mono, Consolas" FontSize="11.5" Foreground="#1F2937" TextWrapping="Wrap"/>
+                                                    <TextBox Text="{Binding Message, Mode=OneWay}" Style="{StaticResource ReadOnlyText}" Margin="0,2,0,0"
+                                                             FontFamily="Cascadia Mono, Consolas" FontSize="11.5" Foreground="{DynamicResource TextSecondary}"/>
                                                 </StackPanel>
                                             </Border>
                                         </DataTemplate>
@@ -124,26 +127,29 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Grid.Row="0" Background="White" BorderBrush="#E5E7EB" BorderThickness="0,0,0,1" Padding="24,16">
+        <Border Grid.Row="0" Background="{DynamicResource SurfaceBg}" BorderBrush="{DynamicResource SurfaceBorder}" BorderThickness="0,0,0,1" Padding="24,16">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Text="Why Did I Reboot" FontSize="24" FontWeight="SemiBold" Foreground="#111827"/>
+                    <TextBlock Text="Why Did I Reboot" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                     <TextBlock Text="A plain-English history of every restart, shutdown and crash on this PC, read from the Windows event log."
-                               Foreground="#6B7280" Margin="0,2,16,0" TextWrapping="Wrap"/>
+                               Foreground="{DynamicResource TextMuted}" Margin="0,2,16,0" TextWrapping="Wrap"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <ComboBox ItemsSource="{Binding Ranges}" SelectedItem="{Binding Range}" DisplayMemberPath="Label" Width="190" Padding="8,5" VerticalContentAlignment="Center"/>
+                    <ComboBox Style="{StaticResource ThemedComboBox}" ItemsSource="{Binding Ranges}" SelectedItem="{Binding Range}" Width="190"
+                              ItemTemplate="{StaticResource LabelTemplate}"/>
+                    <ComboBox Style="{StaticResource ThemedComboBox}" ItemsSource="{Binding Themes}" SelectedItem="{Binding Theme}" Width="130" Margin="6,0,0,0"
+                              ItemTemplate="{StaticResource LabelTemplate}" ToolTip="Colour theme"/>
                     <Button Style="{StaticResource ToolButton}" Command="{Binding RefreshCommand}" ToolTip="Re-read the event log (F5)">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE72C;" FontFamily="{StaticResource IconFont}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                             <TextBlock Text="Refresh"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource ToolButton}" Click="Export_Click" ToolTip="Save what is shown as a text or CSV file">
+                    <Button Style="{StaticResource ToolButton}" Click="Export_Click" ToolTip="Save what is shown as an HTML, text or CSV file">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xEDE1;" FontFamily="{StaticResource IconFont}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                             <TextBlock Text="Export"/>
@@ -160,13 +166,13 @@
         </Border>
 
         <!-- Current session banner -->
-        <Border Grid.Row="1" Margin="24,16,24,0" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="8" Padding="14,10">
+        <Border Grid.Row="1" Margin="24,16,24,0" Background="{DynamicResource BannerBg}" BorderBrush="{DynamicResource BannerBorder}" BorderThickness="1" CornerRadius="8" Padding="14,10">
             <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="&#xE946;" FontFamily="{StaticResource IconFont}" Foreground="#2563EB" FontSize="15" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding CurrentSessionText}" Foreground="#1E3A8A" VerticalAlignment="Center"/>
+                    <TextBlock Text="&#xE946;" FontFamily="{StaticResource IconFont}" Foreground="{DynamicResource Accent}" FontSize="15" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding CurrentSessionText}" Foreground="{DynamicResource BannerText}" VerticalAlignment="Center"/>
                 </StackPanel>
-                <TextBlock Text="{Binding WarningText}" Foreground="#B45309" Margin="25,4,0,0" TextWrapping="Wrap"
+                <TextBlock Text="{Binding WarningText}" Foreground="{DynamicResource WarningText}" Margin="25,4,0,0" TextWrapping="Wrap"
                            Visibility="{Binding HasWarning, Converter={StaticResource BoolToVis}}"/>
             </StackPanel>
         </Border>
@@ -189,29 +195,44 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
                 <StackPanel Orientation="Horizontal" Margin="2,0,0,4">
-                    <TextBlock Text="Show:" Foreground="#6B7280" FontSize="12" Margin="0,0,8,0"/>
+                    <TextBlock Text="Show:" Foreground="{DynamicResource TextMuted}" FontSize="12" Margin="0,0,8,0"/>
                     <Button Content="everything" Style="{StaticResource LinkButton}" Command="{Binding AllOnCommand}"/>
                     <Button Content="reboots only" Style="{StaticResource LinkButton}" Command="{Binding RebootsOnlyCommand}"/>
                     <Button Content="problems only" Style="{StaticResource LinkButton}" Command="{Binding ProblemsOnlyCommand}"/>
+                    <Button Content="none" Style="{StaticResource LinkButton}" Command="{Binding NoneCommand}"/>
                 </StackPanel>
             </StackPanel>
-            <Grid Grid.Column="1" VerticalAlignment="Top" Margin="12,0,0,0">
-                <TextBox x:Name="SearchBox" Width="240" Padding="28,6,8,6" VerticalContentAlignment="Center"
-                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=200}" BorderBrush="#D1D5DB"/>
-                <TextBlock Text="&#xE721;" FontFamily="{StaticResource IconFont}" Foreground="#9CA3AF" Margin="9,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
-                <TextBlock Text="Search titles, KB numbers, STOP codes…" Foreground="#9CA3AF" Margin="30,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-            </Grid>
+
+            <!-- Search: icon and text box share one bordered container so they sit on the same baseline. -->
+            <Border Grid.Column="1" VerticalAlignment="Top" Margin="12,0,0,0" Width="250" Height="30" CornerRadius="6"
+                    Background="{DynamicResource ControlBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="&#xE721;" FontFamily="{StaticResource IconFont}" FontSize="13" Foreground="{DynamicResource TextFaint}"
+                               Margin="9,0,6,0" VerticalAlignment="Center"/>
+                    <Grid Grid.Column="1">
+                        <TextBox x:Name="SearchBox" Style="{StaticResource ThemedTextBox}" BorderThickness="0" Background="Transparent" Padding="0"
+                                 VerticalContentAlignment="Center" VerticalAlignment="Stretch" Margin="0,0,8,0"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=200}"/>
+                        <TextBlock Text="Search titles, KB numbers, STOP codes…" Foreground="{DynamicResource TextFaint}"
+                                   Margin="2,0,8,0" VerticalAlignment="Center" IsHitTestVisible="False" TextTrimming="CharacterEllipsis">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Grid>
+            </Border>
         </Grid>
 
         <!-- Timeline -->
@@ -222,7 +243,7 @@
                         <GroupStyle>
                             <GroupStyle.HeaderTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" Foreground="#4B5563" Margin="2,10,0,8"/>
+                                    <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextMuted}" Margin="2,10,0,8"/>
                                 </DataTemplate>
                             </GroupStyle.HeaderTemplate>
                         </GroupStyle>
@@ -231,22 +252,22 @@
             </ScrollViewer>
 
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}">
-                <ProgressBar IsIndeterminate="True" Width="240" Height="6"/>
-                <TextBlock Text="Reading the Windows event log…" Foreground="#6B7280" Margin="0,10,0,0" HorizontalAlignment="Center"/>
+                <ProgressBar IsIndeterminate="True" Width="240" Height="6" BorderThickness="0" Background="{DynamicResource ControlPressed}" Foreground="{DynamicResource Accent}"/>
+                <TextBlock Text="Reading the Windows event log…" Foreground="{DynamicResource TextMuted}" Margin="0,10,0,0" HorizontalAlignment="Center"/>
             </StackPanel>
 
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding ShowEmpty, Converter={StaticResource BoolToVis}}">
-                <TextBlock Text="&#xE9CE;" FontFamily="{StaticResource IconFont}" FontSize="36" Foreground="#9CA3AF" HorizontalAlignment="Center"/>
-                <TextBlock Text="Nothing matches the current filters" Foreground="#6B7280" Margin="0,10,0,0" HorizontalAlignment="Center"/>
-                <TextBlock Text="Turn some categories back on, clear the search, or widen the date range." Foreground="#9CA3AF" FontSize="12" HorizontalAlignment="Center"/>
+                <TextBlock Text="&#xE9CE;" FontFamily="{StaticResource IconFont}" FontSize="36" Foreground="{DynamicResource TextFaint}" HorizontalAlignment="Center"/>
+                <TextBlock Text="Nothing matches the current filters" Foreground="{DynamicResource TextMuted}" Margin="0,10,0,0" HorizontalAlignment="Center"/>
+                <TextBlock Text="Turn some categories back on, clear the search, or widen the date range." Foreground="{DynamicResource TextFaint}" FontSize="12" HorizontalAlignment="Center"/>
             </StackPanel>
         </Grid>
 
         <!-- Status bar -->
-        <Border Grid.Row="4" Background="White" BorderBrush="#E5E7EB" BorderThickness="0,1,0,0" Padding="24,6">
+        <Border Grid.Row="4" Background="{DynamicResource SurfaceBg}" BorderBrush="{DynamicResource SurfaceBorder}" BorderThickness="0,1,0,0" Padding="24,6">
             <Grid>
-                <TextBlock Text="{Binding StatusText}" Foreground="#6B7280" FontSize="12"/>
-                <TextBlock Foreground="#6B7280" FontSize="12" HorizontalAlignment="Right">
+                <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource TextMuted}" FontSize="12"/>
+                <TextBlock Foreground="{DynamicResource TextMuted}" FontSize="12" HorizontalAlignment="Right">
                     <Run Text="{Binding ShownCount, Mode=OneWay}"/><Run Text=" shown"/>
                 </TextBlock>
             </Grid>

@@ -28,8 +28,9 @@ public partial class App : Application
                 var result = RebootAnalyzer.Analyze(days);
                 var entries = result.Entries.Where(x => includeSleep || x.Category != RebootCategory.Sleep);
                 var label = days is int dd ? $"last {dd} days" : "everything";
-                var text = path.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
-                    ? TextExporter.ToCsv(entries)
+                var text = path.EndsWith(".csv", StringComparison.OrdinalIgnoreCase) ? TextExporter.ToCsv(entries)
+                    : path.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".htm", StringComparison.OrdinalIgnoreCase)
+                        ? TextExporter.ToHtml(result, entries, label)
                     : TextExporter.ToText(result, entries, label);
                 File.WriteAllText(path, text);
                 Environment.ExitCode = 0;
@@ -49,6 +50,7 @@ public partial class App : Application
             ex.Handled = true;
         };
 
+        ThemeManager.Initialize();
         var window = new MainWindow();
         MainWindow = window;
         window.Show();
