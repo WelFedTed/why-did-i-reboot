@@ -45,7 +45,7 @@ public class SearchIndexTests
     [InlineData("User32", true)]           // evidence provider
     [InlineData("Minidump", true)]         // dump path
     [InlineData("Microsoft Learn", true)]  // link label
-    [InlineData("12 July 2026", true)]     // formatted timestamp
+    [InlineData("2026", true)]             // formatted timestamp (year only: month names vary by locale)
     [InlineData("User", true)]             // category label
     [InlineData("Installed updates", false)]      // static UI heading is not content
     [InlineData("Details and log records", false)]
