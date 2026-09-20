@@ -459,11 +459,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
 
     private bool _isAskingAi;
+    private string _busyText = "";
+    private CancellationTokenSource? _askAiCts;
+
+    /// <summary>True while WinDbg is analysing the dump; the window shows a spinner overlay.</summary>
     public bool IsAskingAi { get => _isAskingAi; private set { _isAskingAi = value; OnPropertyChanged(); } }
+    public string BusyText { get => _busyText; private set { _busyText = value; OnPropertyChanged(); } }
 
     /// <summary>Runs "!analyze -v" on the dump through WinDbg, then opens the chosen chat service with a prompt built from the output and the card.</summary>
     public ICommand AskAiCommand => _askAi ??= new RelayCommand(async p => { if (p is RebootEntry e) await AskAiAsync(e); }, _ => !_isInstallingWinDbg && !IsAskingAi);
     private RelayCommand? _askAi;
+
+    public ICommand CancelAskAiCommand => _cancelAskAi ??= new RelayCommand(_ => _askAiCts?.Cancel(), _ => IsAskingAi);
+    private RelayCommand? _cancelAskAi;
 
     public async Task AskAiAsync(RebootEntry entry)
     {
@@ -472,22 +480,38 @@ public sealed class MainViewModel : INotifyPropertyChanged
         var windbg = await EnsureWinDbgAsync("the analysis will run when it finishes");
         if (windbg is null) return;
 
+        var workDir = WinDbgLocator.AnalysisWorkDir();
+        if (workDir is null)
+        {
+            Notify?.Invoke("Could not find a writable folder without spaces in its path for WinDbg's log file (WinDbg cannot take quoted paths in its command line).");
+            return;
+        }
+        var log = System.IO.Path.Combine(workDir, WinDbgLocator.LogFileName(dump));
+
         IsAskingAi = true;
+        BusyText = "WinDbg is analysing the crash dump… This can take a few minutes the first time while it downloads symbols. Leave the WinDbg window alone.";
+        _askAiCts = new CancellationTokenSource();
         CommandManager.InvalidateRequerySuggested();
-        var workDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "WhyDidIReboot-analysis");
-        var log = System.IO.Path.Combine(workDir, System.IO.Path.GetFileNameWithoutExtension(dump) + ".analyze.txt");
         try
         {
-            System.IO.Directory.CreateDirectory(workDir);
             if (System.IO.File.Exists(log)) System.IO.File.Delete(log);
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(windbg, WinDbgLocator.AnalyzeToLogArguments(dump, log)) { UseShellExecute = true });
 
-            var text = await WinDbgLocator.WaitForLogAsync(log, TimeSpan.FromMinutes(4));
+            string? text;
+            try
+            {
+                text = await WinDbgLocator.WaitForLogAsync(log, TimeSpan.FromMinutes(6), _askAiCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;   // the user pressed Cancel; WinDbg keeps running on its own
+            }
             if (text is null)
             {
-                Notify?.Invoke("WinDbg did not finish writing the analysis within 4 minutes (symbol downloads can be slow the first time). Leave WinDbg open and try Ask AI again once it has finished.");
+                Notify?.Invoke("WinDbg did not finish writing the analysis within 6 minutes (symbol downloads can be slow the first time). Leave WinDbg open and try Ask AI again once it has finished.");
                 return;
             }
+            BusyText = "Preparing the prompt…";
 
             var summary = CrashAnalysis.Summarize(text);
             var entryText = TextExporter.EntryToText(entry);
@@ -508,6 +532,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
         finally
         {
+            _askAiCts?.Dispose();
+            _askAiCts = null;
+            BusyText = "";
             IsAskingAi = false;
             CommandManager.InvalidateRequerySuggested();
         }

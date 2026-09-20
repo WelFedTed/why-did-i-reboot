@@ -43,9 +43,44 @@ public static class WinDbgLocator
     /// <summary>Opens the dump and runs the standard crash analysis straight away.</summary>
     public static string Arguments(string dumpPath) => $"-z \"{dumpPath}\" -c \"!analyze -v\"";
 
-    /// <summary>Opens the dump, logs "!analyze -v" to <paramref name="logPath"/>, closes the log and ends the session.</summary>
-    public static string AnalyzeToLogArguments(string dumpPath, string logPath) =>
-        $"-z \"{dumpPath}\" -c \".logopen /t \\\"{logPath}\\\"; !analyze -v; .logclose; q\"";
+    /// <summary>
+    /// Opens the dump, logs "!analyze -v" to <paramref name="logPath"/>, closes the log and ends the session.
+    /// WinDbg cannot take quotes inside the -c command, so the log path must contain no spaces or quotes;
+    /// use <see cref="AnalysisWorkDir"/> to get such a folder.
+    /// </summary>
+    public static string AnalyzeToLogArguments(string dumpPath, string logPath)
+    {
+        if (logPath.IndexOfAny(new[] { ' ', '"', ';' }) >= 0)
+            throw new ArgumentException("The log path must not contain spaces, quotes or semicolons.", nameof(logPath));
+        return $"-z \"{dumpPath}\" -c \".logopen {logPath}; !analyze -v; .logclose; q\"";
+    }
+
+    /// <summary>
+    /// A writable folder whose path has no spaces, for WinDbg log files. Tries the Public profile
+    /// (C:\Users\Public), then ProgramData, then the temp folder; <paramref name="probe"/> and
+    /// <paramref name="env"/> are injectable for tests.
+    /// </summary>
+    public static string? AnalysisWorkDir(Func<string, bool>? probe = null, Func<string, string?>? env = null)
+    {
+        env ??= Environment.GetEnvironmentVariable;
+        probe ??= dir =>
+        {
+            try { Directory.CreateDirectory(dir); File.WriteAllText(Path.Combine(dir, ".probe"), ""); File.Delete(Path.Combine(dir, ".probe")); return true; }
+            catch { return false; }
+        };
+        var candidates = new[] { env("PUBLIC"), env("ProgramData"), env("TEMP"), env("TMP"), @"C:\" }
+            .Where(root => !string.IsNullOrWhiteSpace(root))
+            .Select(root => Path.Combine(root!, "WhyDidIReboot", "analysis"));
+        return candidates.FirstOrDefault(dir => !dir.Contains(' ') && probe(dir));
+    }
+
+    /// <summary>"071226-7000-01.dmp" → "071226-7000-01.analyze.txt", with anything WinDbg's command parser dislikes replaced.</summary>
+    public static string LogFileName(string dumpPath)
+    {
+        var name = Path.GetFileNameWithoutExtension(dumpPath);
+        var safe = new string(name.Select(c => char.IsLetterOrDigit(c) || c is '-' or '_' or '.' ? c : '_').ToArray());
+        return (safe.Length == 0 ? "dump" : safe) + ".analyze.txt";
+    }
 
     /// <summary>
     /// Waits for WinDbg to finish writing the log: the file exists, is no longer open for writing, and

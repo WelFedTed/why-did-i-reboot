@@ -12,7 +12,11 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - **Ask AI** link beside *Debug in WinDbg* on crash cards. It has WinDbg run `!analyze -v` on the dump into a log file, keeps the parts that matter (probable cause, module and image names, bucket id, bugcheck parameters, the top of the stack), combines them with the card's "Copy this entry" text into a prompt, copies the prompt to the clipboard, and opens a chat service with the prompt prefilled: ChatGPT (default, no sign-in needed), Microsoft Copilot, Perplexity or Claude, chosen in Settings. If the address would be too long the analysis part is shortened and the full prompt is left on the clipboard. WinDbg is installed through winget first if needed.
 
 ### Changed
-- **F9** closes the Settings screen when it is already open.
+- **F9** closes the Settings screen when it is already open, and **F5** there presses the update button.
+- While Ask AI waits for WinDbg, the app shows a spinner with what is happening and a Cancel link.
+
+### Fixed
+- Ask AI failed with "Unable to create a debug session" because the log path inside WinDbg's `-c` command was quoted, which its parser does not support. The log now goes to a folder without spaces (Public profile, then ProgramData, then Temp) and is passed unquoted.
 
 ## [0.8.0] - 2026-09-20
 

@@ -148,11 +148,39 @@ public class CrashAnalysisTests
     }
 
     [Fact]
-    public void Analyze_to_log_arguments_open_log_analyse_close_and_quit()
+    public void Analyze_to_log_arguments_open_log_analyse_close_and_quit_without_inner_quotes()
     {
-        var a = WinDbgLocator.AnalyzeToLogArguments(@"C:\Windows\Minidump\x.dmp", @"C:\Temp\x.txt");
-        Assert.StartsWith("-z \"C:\\Windows\\Minidump\\x.dmp\" -c \"", a);
-        Assert.Contains(".logopen /t \\\"C:\\Temp\\x.txt\\\"; !analyze -v; .logclose; q", a);
+        var a = WinDbgLocator.AnalyzeToLogArguments(@"C:\Windows\Minidump\x.dmp", @"C:\Users\Public\WhyDidIReboot\analysis\x.analyze.txt");
+        Assert.Equal("-z \"C:\\Windows\\Minidump\\x.dmp\" -c \".logopen C:\\Users\\Public\\WhyDidIReboot\\analysis\\x.analyze.txt; !analyze -v; .logclose; q\"", a);
+        Assert.DoesNotContain("\\\"", a);   // escaped quotes broke WinDbg's -c parsing
+
+        Assert.Throws<ArgumentException>(() => WinDbgLocator.AnalyzeToLogArguments(@"C:\x.dmp", @"C:\Users\John Smith\x.txt"));
+        Assert.Throws<ArgumentException>(() => WinDbgLocator.AnalyzeToLogArguments(@"C:\x.dmp", "C:\\x\"y.txt"));
+    }
+
+    [Fact]
+    public void Analysis_folder_avoids_spaces_and_prefers_the_public_profile()
+    {
+        string? Env(string k) => k switch
+        {
+            "PUBLIC" => @"C:\Users\Public",
+            "ProgramData" => @"C:\ProgramData",
+            "TEMP" => @"C:\Users\John Smith\AppData\Local\Temp",
+            _ => null,
+        };
+        Assert.Equal(@"C:\Users\Public\WhyDidIReboot\analysis", WinDbgLocator.AnalysisWorkDir(_ => true, Env));
+        Assert.Equal(@"C:\ProgramData\WhyDidIReboot\analysis", WinDbgLocator.AnalysisWorkDir(d => !d.StartsWith(@"C:\Users\Public"), Env));
+        // The temp folder has a space, so it is skipped even when writable; the last resort is the drive root.
+        Assert.Equal(@"C:\WhyDidIReboot\analysis", WinDbgLocator.AnalysisWorkDir(d => d.StartsWith(@"C:\Why") || d.Contains("Temp"), Env));
+        Assert.Null(WinDbgLocator.AnalysisWorkDir(_ => false, Env));
+    }
+
+    [Fact]
+    public void Log_file_name_comes_from_the_dump_and_is_safe_for_the_command_line()
+    {
+        Assert.Equal("071226-7000-01.analyze.txt", WinDbgLocator.LogFileName(@"C:\Windows\Minidump\071226-7000-01.dmp"));
+        Assert.Equal("my_dump_file.analyze.txt", WinDbgLocator.LogFileName(@"D:\Old PC\my dump;file.dmp"));
+        Assert.Equal("dump.analyze.txt", WinDbgLocator.LogFileName(@"C:\.dmp"));
     }
 
     [Fact]
