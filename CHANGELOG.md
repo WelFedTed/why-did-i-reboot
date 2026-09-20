@@ -8,6 +8,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-20
+
 ### Added
 - **Logs from another Windows installation.** Settings → *Open logs…* (or **F9**) picks a drive, a Windows folder or a `winevt\Logs` folder and reads its `System.evtx` and `Application.evtx` instead of this PC's logs. Crash dump paths are remapped onto that drive, the banner names the source, and a *Back to this PC* link returns to the live logs. Also `--source <folder>` for the headless export.
 - **Check for updates on startup**, with a toggle in Settings (on by default). A newer release shows as a dismissible banner in the main window.
@@ -55,7 +57,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - Export to text or CSV, copy a single entry, open Event Viewer, and jump to a crash dump in Explorer.
 - Headless `--export` mode for scripts.
 
-[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.1.0...v0.2.0
