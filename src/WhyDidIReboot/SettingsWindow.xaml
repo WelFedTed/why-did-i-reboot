@@ -48,7 +48,7 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
                             <TextBlock Text="Another Windows installation" Foreground="{DynamicResource TextPrimary}"/>
-                            <TextBlock Text="Read System.evtx and Application.evtx from a second drive or a copied Windows folder. Shortcut: F9." Foreground="{DynamicResource TextMuted}" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                            <TextBlock Text="Read System.evtx and Application.evtx from a second drive or a copied Windows folder. (F9 opens this Settings screen.)" Foreground="{DynamicResource TextMuted}" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
                         <Button Grid.Column="1" Style="{StaticResource ToolButton}" Margin="0" VerticalAlignment="Center" Click="Browse_Click" AutomationProperties.Name="Open offline logs">
                             <StackPanel Orientation="Horizontal">

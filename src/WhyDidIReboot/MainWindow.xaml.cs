@@ -34,7 +34,7 @@ public partial class MainWindow : Window
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.F5) { _ = _vm.RefreshAsync(); e.Handled = true; }
-            if (e.Key == Key.F9) { BrowseOfflineLogs(); e.Handled = true; }
+            if (e.Key == Key.F9) { OpenSettings(); e.Handled = true; }
             if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { SearchBox.Focus(); SearchBox.SelectAll(); e.Handled = true; }
             if (e.Key == Key.Escape && SearchBox.IsKeyboardFocusWithin && _vm.HasSearch) { _vm.SearchText = ""; e.Handled = true; }
         };
@@ -134,7 +134,10 @@ public partial class MainWindow : Window
         }
     }
 
-    private void Settings_Click(object sender, RoutedEventArgs e)
+    private void Settings_Click(object sender, RoutedEventArgs e) => OpenSettings();
+
+    /// <summary>Shows Settings (cog button or F9) and runs whichever picker the user asked for from it.</summary>
+    private void OpenSettings()
     {
         var dialog = new SettingsWindow(_vm) { Owner = this };
         dialog.ShowDialog();

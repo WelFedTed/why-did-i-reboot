@@ -239,7 +239,7 @@
                             <TextBlock Text="Export"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource ToolButton}" Click="Settings_Click" ToolTip="Settings" AutomationProperties.Name="Settings" Padding="8,6" Width="36">
+                    <Button Style="{StaticResource ToolButton}" Click="Settings_Click" ToolTip="Settings (F9)" AutomationProperties.Name="Settings" Padding="8,6" Width="36">
                         <TextBlock Text="&#xE713;" FontFamily="{StaticResource IconFont}" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                     </Button>
                 </StackPanel>

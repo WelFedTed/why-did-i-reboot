@@ -17,6 +17,7 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - Driver updates linked to Windows Update history's generic `support.microsoft.com/select/?target=hub` page, which does not work. Such links are dropped; updates without a KB number now link to a Microsoft Update Catalog search for the title instead.
 
 ### Changed
+- **F9** now opens the Settings screen (same as the cog) instead of jumping straight to the folder picker for another installation's logs.
 - The app shows "N of M shown" under the search box, like the HTML report, and the status bar's right corner shows the app version (e.g. v0.7.0) instead of the count.
 - The HTML report's footer and the text report's header name the app version that produced them.
 
