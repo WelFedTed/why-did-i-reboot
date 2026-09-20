@@ -18,6 +18,11 @@ public static partial class UpdateClassifier
     [GeneratedRegex(@"^[^-]+ - [^-]+ - \d+(\.\d+){1,3}$")]
     private static partial Regex DriverTitle();
 
+    // Monthly Windows updates are named "2026-06 Security Update (KB…)", "2026-09 Cumulative Update for …",
+    // "2026-09 .NET Framework …" — the year-month prefix marks the Windows servicing train.
+    [GeneratedRegex(@"^\d{4}-\d{2} ")]
+    private static partial Regex MonthlyTitle();
+
     public static string Group(string title, string? category)
     {
         var t = title ?? "";
@@ -34,7 +39,8 @@ public static partial class UpdateClassifier
             t.Contains("antimalware", StringComparison.OrdinalIgnoreCase))
             return Security;
 
-        if (t.Contains("Cumulative Update", StringComparison.OrdinalIgnoreCase) || t.Contains("Security Update for Windows", StringComparison.OrdinalIgnoreCase) ||
+        if (MonthlyTitle().IsMatch(t.Trim()) ||
+            t.Contains("Cumulative Update", StringComparison.OrdinalIgnoreCase) || t.Contains("Security Update for Windows", StringComparison.OrdinalIgnoreCase) ||
             t.Contains("Feature Update", StringComparison.OrdinalIgnoreCase) || t.Contains("Servicing Stack", StringComparison.OrdinalIgnoreCase) ||
             t.Contains("Windows 1", StringComparison.OrdinalIgnoreCase) || t.Contains("Windows Server", StringComparison.OrdinalIgnoreCase) ||
             t.Contains("Dynamic Update", StringComparison.OrdinalIgnoreCase) || t.Contains("Setup Dynamic", StringComparison.OrdinalIgnoreCase) ||

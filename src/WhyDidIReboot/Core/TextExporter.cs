@@ -85,8 +85,8 @@ public static class TextExporter
         sb.Append("<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n");
         sb.Append("<title>Why Did I Reboot — ").Append(machine).Append("</title>\n<style>\n");
         sb.Append(@"
-:root{color-scheme:light dark;--bg:#f3f4f6;--card:#fff;--border:#e5e7eb;--text:#111827;--text2:#374151;--muted:#6b7280;--faint:#9ca3af;--evidence:#f9fafb;--link:#2563eb;--banner:#eff6ff;--banner-b:#bfdbfe;--banner-t:#1e3a8a;--warn:#b45309}
-@media (prefers-color-scheme:dark){:root{--bg:#111318;--card:#1b1e25;--border:#2c3039;--text:#e6e8ee;--text2:#c0c5cf;--muted:#8b919e;--faint:#6b7280;--evidence:#14171d;--link:#6ea0ff;--banner:#172033;--banner-b:#27406b;--banner-t:#bfd3ff;--warn:#f0b45a}}
+:root{color-scheme:light dark;--bg:#f3f4f6;--card:#fff;--border:#e5e7eb;--text:#111827;--text2:#374151;--muted:#6b7280;--faint:#9ca3af;--evidence:#f9fafb;--link:#2563eb;--banner:#eff6ff;--banner-b:#bfdbfe;--banner-t:#1e3a8a;--warn:#b45309;--hl:#fde68a;--hlfg:#1f1300}
+@media (prefers-color-scheme:dark){:root{--bg:#111318;--card:#1b1e25;--border:#2c3039;--text:#e6e8ee;--text2:#c0c5cf;--muted:#8b919e;--faint:#6b7280;--evidence:#14171d;--link:#6ea0ff;--banner:#172033;--banner-b:#27406b;--banner-t:#bfd3ff;--warn:#f0b45a;--hl:#7a5a0c;--hlfg:#fff3c4}}
 *{box-sizing:border-box}
 body{margin:0;padding:32px 20px;background:var(--bg);color:var(--text);font:14px/1.45 ""Segoe UI Variable Text"",""Segoe UI"",system-ui,-apple-system,sans-serif}
 .wrap{max-width:980px;margin:0 auto}
@@ -94,9 +94,23 @@ h1{font-size:26px;font-weight:600;margin:0 0 4px}
 .sub{color:var(--muted);margin:0 0 18px;font-size:13px}
 .banner{background:var(--banner);border:1px solid var(--banner-b);color:var(--banner-t);border-radius:8px;padding:10px 14px;margin-bottom:14px}
 .warn{color:var(--warn);font-size:13px;margin-top:4px}
-.counts{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px}
-.chip{--col:var(--c);display:inline-flex;align-items:center;gap:8px;border:1px solid var(--col);background:color-mix(in srgb,var(--col) 12%,transparent);border-radius:14px;padding:4px 10px;font-size:12px}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;margin:0 0 6px}
+.counts{display:flex;flex-wrap:wrap;gap:8px;flex:1}
+.chip{--col:var(--c);display:inline-flex;align-items:center;gap:8px;border:1px solid var(--col);background:color-mix(in srgb,var(--col) 12%,transparent);border-radius:14px;padding:4px 10px;font:inherit;font-size:12px;color:var(--text);cursor:pointer}
 .chip b{background:var(--col);color:#fff;border-radius:9px;padding:0 7px;font-size:11px}
+.chip.off{border-color:var(--border);background:var(--evidence);color:var(--faint)}
+.chip.off b{background:var(--border);color:var(--muted)}
+.search{position:relative;flex:none}
+.search input{width:270px;padding:6px 30px 6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);font:inherit;font-size:13px}
+.search button{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 6px}
+.presets{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted);margin:0 0 18px}
+.presets a{color:var(--link);text-decoration:none}
+.presets a:hover{text-decoration:underline}
+#shown{margin-left:auto}
+mark.hl{background:var(--hl);color:var(--hlfg);font-weight:600;border-radius:2px;padding:0 1px}
+.empty{color:var(--muted);text-align:center;padding:40px 0}
+[hidden]{display:none!important}
+@media print{.bar,.presets{display:none}}
 h2.day{font-size:13px;font-weight:600;color:var(--muted);margin:26px 0 10px}
 .card{--col:var(--c);background:var(--card);border:1px solid var(--border);border-left:6px solid var(--col);border-radius:10px;padding:14px 18px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
 @media (prefers-color-scheme:dark){.chip,.card{--col:var(--cd)}}
@@ -140,12 +154,20 @@ table.kv{border-collapse:collapse;margin-top:8px}
         foreach (var w in result.Warnings) sb.Append($"<div class=\"warn\">{H(w)}</div>");
         sb.Append("</div>\n");
 
-        sb.Append("<div class=\"counts\">");
+        // Filter bar: category chips (click to toggle), presets, and a search box, all driven by the inline script below.
+        sb.Append("<div class=\"bar\"><div class=\"counts\">");
         foreach (var group in list.GroupBy(e => e.Category).OrderByDescending(g => g.Count()))
-            sb.Append($"<span class=\"chip\" style=\"--c:{CategoryPalette.Hex(group.Key, false)};--cd:{CategoryPalette.Hex(group.Key, true)}\">{H(Format.Category(group.Key))} <b>{group.Count()}</b></span>");
+            sb.Append($"<button type=\"button\" class=\"chip\" data-cat=\"{group.Key}\" style=\"--c:{CategoryPalette.Hex(group.Key, false)};--cd:{CategoryPalette.Hex(group.Key, true)}\" title=\"Click to show or hide\">{H(Format.Category(group.Key))} <b>{group.Count()}</b></button>");
+        sb.Append("</div>");
+        sb.Append("<div class=\"search\"><input id=\"q\" type=\"search\" placeholder=\"Search titles, KB numbers, STOP codes…\" aria-label=\"Search\"><button id=\"clear\" type=\"button\" title=\"Clear search\" hidden>✕</button></div>");
         sb.Append("</div>\n");
+        sb.Append("<div class=\"presets\"><span>Show:</span>");
+        foreach (var (key, label) in new[] { ("default", "default"), ("everything", "everything"), ("reboots", "reboots only"), ("problems", "problems only"), ("none", "none") })
+            sb.Append($"<a href=\"#\" data-preset=\"{key}\">{label}</a>");
+        sb.Append("<span id=\"shown\"></span></div>\n");
 
         if (list.Count == 0) sb.Append("<p class=\"sub\">No events in this range.</p>\n");
+        sb.Append("<div id=\"empty\" class=\"empty\" hidden>Nothing matches the current filters.</div>\n");
 
         string? day = null;
         foreach (var e in list)
@@ -164,14 +186,15 @@ table.kv{border-collapse:collapse;margin-top:8px}
                 if (e.PreviousUptime is TimeSpan u) when.Add("previous session ran " + Format.Duration(u));
             }
 
-            sb.Append($"<div class=\"card\" style=\"--c:{CategoryPalette.Hex(e.Category, false)};--cd:{CategoryPalette.Hex(e.Category, true)}\">\n");
+            sb.Append($"<div class=\"card\" data-cat=\"{e.Category}\" data-reboot=\"{(e.IsReboot ? 1 : 0)}\" style=\"--c:{CategoryPalette.Hex(e.Category, false)};--cd:{CategoryPalette.Hex(e.Category, true)}\">\n");
             sb.Append("<div class=\"head\"><div class=\"dot\"></div><div>");
             sb.Append($"<div class=\"title\">{H(e.Title)}</div><div class=\"when\">{H(string.Join("  ·  ", when))}</div></div>");
             sb.Append($"<span class=\"badge\">{H(Format.Category(e.Category))}</span></div>\n");
             sb.Append($"<div class=\"summary\">{H(e.Summary)}</div>\n");
             if (e.Updates.Count > 0)
             {
-                sb.Append("<div class=\"uhead\">Installed updates</div>\n");
+                // Collapsed by default, like the app; the script opens it when a search term is inside.
+                sb.Append("<details class=\"updates-block\"><summary>Installed updates</summary>\n");
                 foreach (var g in e.UpdateGroups)
                 {
                     sb.Append($"<div class=\"ugroup\">{H(g.Name)}</div><ul class=\"updates\">");
@@ -186,6 +209,7 @@ table.kv{border-collapse:collapse;margin-top:8px}
                     }
                     sb.Append("</ul>\n");
                 }
+                sb.Append("</details>\n");
             }
             if (e.Links.Count > 0)
             {
@@ -205,10 +229,79 @@ table.kv{border-collapse:collapse;margin-top:8px}
             sb.Append("</details>\n</div>\n");
         }
 
-        sb.Append("<p class=\"foot\">Generated by Why Did I Reboot. Categories are inferred from the Windows System and Application event logs.</p>\n");
-        sb.Append("</div>\n</body>\n</html>\n");
+        sb.Append("<p class=\"foot\">Generated by Why Did I Reboot. Categories are inferred from the Windows System and Application event logs. Open with <code>?q=words</code> in the address bar to start with a search.</p>\n");
+        sb.Append("</div>\n<script>\n").Append(Script).Append("\n</script>\n</body>\n</html>\n");
         return sb.ToString();
     }
+
+    /// <summary>
+    /// Filtering, search, highlighting and auto-expansion for the HTML report. Everything stays in the
+    /// page: chips toggle categories, presets mirror the app, every search word must appear somewhere on a
+    /// card, matches are wrapped in &lt;mark&gt;, and a collapsed block opens when a match sits inside it.
+    /// </summary>
+    private const string Script = """
+(function(){
+var cards=Array.prototype.slice.call(document.querySelectorAll('.card'));
+var chips=Array.prototype.slice.call(document.querySelectorAll('.chip[data-cat]'));
+var q=document.getElementById('q'),clear=document.getElementById('clear'),shown=document.getElementById('shown'),empty=document.getElementById('empty');
+var presets={
+  'default':function(c){return c!=='Sleep';},
+  'everything':function(){return true;},
+  'reboots':function(c){return c!=='Sleep'&&c!=='LiveKernelEvent';},
+  'problems':function(c){return ['BlueScreen','Unexpected','LiveKernelEvent','Unknown'].indexOf(c)>=0;},
+  'none':function(){return false;}
+};
+var on={};chips.forEach(function(ch){on[ch.getAttribute('data-cat')]=true;});
+cards.forEach(function(c){c.setAttribute('data-text',c.textContent.toLowerCase());});
+function unmark(el){
+  Array.prototype.slice.call(el.querySelectorAll('mark.hl')).forEach(function(m){m.parentNode.replaceChild(document.createTextNode(m.textContent),m);});
+  el.normalize();
+}
+function mark(el,terms){
+  if(!terms.length)return;
+  var walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT,null,false),nodes=[],n;
+  while((n=walker.nextNode()))nodes.push(n);
+  nodes.forEach(function(node){
+    var text=node.nodeValue,lower=text.toLowerCase(),ranges=[];
+    terms.forEach(function(t){var i=0;while((i=lower.indexOf(t,i))>=0){ranges.push([i,i+t.length]);i+=1;}});
+    if(!ranges.length)return;
+    ranges.sort(function(a,b){return a[0]-b[0];});
+    var merged=[];ranges.forEach(function(r){var last=merged[merged.length-1];if(last&&r[0]<=last[1])last[1]=Math.max(last[1],r[1]);else merged.push(r.slice());});
+    var frag=document.createDocumentFragment(),pos=0;
+    merged.forEach(function(r){if(r[0]>pos)frag.appendChild(document.createTextNode(text.slice(pos,r[0])));var m=document.createElement('mark');m.className='hl';m.textContent=text.slice(r[0],r[1]);frag.appendChild(m);pos=r[1];});
+    if(pos<text.length)frag.appendChild(document.createTextNode(text.slice(pos)));
+    node.parentNode.replaceChild(frag,node);
+  });
+}
+function apply(){
+  var terms=q.value.toLowerCase().split(/\s+/).filter(Boolean),count=0;
+  cards.forEach(function(c){
+    var text=c.getAttribute('data-text');
+    var vis=!!on[c.getAttribute('data-cat')]&&terms.every(function(t){return text.indexOf(t)>=0;});
+    c.hidden=!vis;
+    unmark(c);
+    if(vis){mark(c,terms);count++;}
+    Array.prototype.slice.call(c.querySelectorAll('details')).forEach(function(d){d.open=terms.length?!!d.querySelector('mark.hl'):false;});
+  });
+  Array.prototype.slice.call(document.querySelectorAll('h2.day')).forEach(function(h){
+    var e=h.nextElementSibling,any=false;
+    while(e&&!e.classList.contains('day')){if(e.classList.contains('card')&&!e.hidden)any=true;e=e.nextElementSibling;}
+    h.hidden=!any;
+  });
+  chips.forEach(function(ch){ch.classList.toggle('off',!on[ch.getAttribute('data-cat')]);});
+  shown.textContent=count+' of '+cards.length+' shown';
+  clear.hidden=!q.value;
+  empty.hidden=count>0||cards.length===0;
+}
+chips.forEach(function(ch){ch.addEventListener('click',function(){var c=ch.getAttribute('data-cat');on[c]=!on[c];apply();});});
+Array.prototype.slice.call(document.querySelectorAll('[data-preset]')).forEach(function(a){a.addEventListener('click',function(ev){ev.preventDefault();var f=presets[a.getAttribute('data-preset')];chips.forEach(function(ch){var c=ch.getAttribute('data-cat');on[c]=f(c);});apply();});});
+q.addEventListener('input',apply);
+q.addEventListener('keydown',function(e){if(e.key==='Escape'){q.value='';apply();}});
+clear.addEventListener('click',function(){q.value='';apply();q.focus();});
+var init=new URLSearchParams(location.search).get('q');if(init)q.value=init;
+apply();
+})();
+""";
 
     private static string H(string s) => System.Net.WebUtility.HtmlEncode(s);
 

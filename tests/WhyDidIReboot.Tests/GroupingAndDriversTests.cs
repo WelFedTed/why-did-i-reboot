@@ -14,6 +14,8 @@ public class GroupingAndDriversTests
     [InlineData("NVIDIA Display Driver Update (32.0.15.9186)", null, UpdateClassifier.Drivers)]
     [InlineData("Some Vendor thing", "Drivers", UpdateClassifier.Drivers)]
     [InlineData("2026-06 Security Update (KB5094126) (26200.8655)", "Security Updates", UpdateClassifier.Windows)]
+    [InlineData("2026-06 Security Update (KB5094126) (26200.8655)", null, UpdateClassifier.Windows)]   // history may lack the classification
+    [InlineData("2026-09 Cumulative Update Preview for .NET Framework 3.5 and 4.8.1 (KB5050000)", null, UpdateClassifier.Windows)]
     [InlineData("2026-09 Cumulative Update for Windows 11 (KB5099999)", null, UpdateClassifier.Windows)]
     [InlineData("Feature Update to Windows 11 24H2", null, UpdateClassifier.Windows)]
     [InlineData("Security Intelligence Update for Microsoft Defender Antivirus - KB2267602", "Definition Updates", UpdateClassifier.Security)]
@@ -88,7 +90,7 @@ public class GroupingAndDriversTests
         Assert.Contains("Intel - System - 1.0.0.0 (FAILED)", text);
 
         var html = TextExporter.ToHtml(result, result.Entries, "all");
-        Assert.Contains("<div class=\"uhead\">Installed updates</div>", html);
+        Assert.Contains("<details class=\"updates-block\"><summary>Installed updates</summary>", html);
         Assert.Contains("<div class=\"ugroup\">Drivers</div>", html);
         Assert.Contains("<span class=\"fail\">failed</span>", html);
     }

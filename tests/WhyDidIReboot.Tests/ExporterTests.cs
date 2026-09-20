@@ -95,6 +95,40 @@ public class ExporterTests
     }
 
     [Fact]
+    public void Html_report_is_interactive_and_collapses_updates()
+    {
+        var withUpdates = new RebootEntry
+        {
+            Timestamp = new DateTime(2026, 9, 13, 15, 30, 22),
+            Category = RebootCategory.WindowsUpdate,
+            Title = "Restarted to finish installing Windows updates",
+            Summary = "s",
+            Updates = new() { new("2026-09 Cumulative Update (KB5099999)", "KB5099999", null, null, null, false, UpdateClassifier.Windows) },
+        };
+        var result = new AnalysisResult { Entries = new() { withUpdates, Crash }, CurrentBootTime = new DateTime(2026, 9, 13) };
+
+        var html = TextExporter.ToHtml(result, result.Entries, "everything");
+
+        // Category chips are buttons the script toggles; cards carry the category for filtering.
+        Assert.Contains("<button type=\"button\" class=\"chip\" data-cat=\"WindowsUpdate\"", html);
+        Assert.Contains("<button type=\"button\" class=\"chip\" data-cat=\"BlueScreen\"", html);
+        Assert.Contains("<div class=\"card\" data-cat=\"BlueScreen\" data-reboot=\"1\"", html);
+
+        // Search box, clear button, presets and the shown counter.
+        Assert.Contains("<input id=\"q\" type=\"search\"", html);
+        Assert.Contains("<button id=\"clear\"", html);
+        foreach (var preset in new[] { "default", "everything", "reboots", "problems", "none" })
+            Assert.Contains($"data-preset=\"{preset}\"", html);
+        Assert.Contains("<span id=\"shown\"></span>", html);
+
+        // Updates sit behind a collapsed block like the app, and the script is inline.
+        Assert.Contains("<details class=\"updates-block\"><summary>Installed updates</summary>", html);
+        Assert.Contains("<script>", html);
+        Assert.Contains("URLSearchParams(location.search).get('q')", html);
+        Assert.Contains("mark.hl{background:var(--hl)", html);
+    }
+
+    [Fact]
     public void Html_report_with_no_entries_says_so()
     {
         var html = TextExporter.ToHtml(Result, Array.Empty<RebootEntry>(), "last 7 days");
