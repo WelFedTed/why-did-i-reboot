@@ -11,6 +11,9 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 ### Changed
 - The *Installed updates* and *Details and log records* labels are now searchable and highlighted like the rest of a card. A match on the label alone does not open the block.
 
+### Fixed
+- The red *failed* marker on an update is highlighted when the search matches it.
+
 ## [0.6.0] - 2026-09-20
 
 ### Added

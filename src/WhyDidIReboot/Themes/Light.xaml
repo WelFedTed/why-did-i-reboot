@@ -27,6 +27,7 @@
     <SolidColorBrush x:Key="ScrollThumbHover" Color="#A9AEB8"/>
     <SolidColorBrush x:Key="SelectionBg" Color="#BFDBFE"/>
     <SolidColorBrush x:Key="HighlightBg" Color="#FDE68A"/>
+    <SolidColorBrush x:Key="HighlightFg" Color="#1F1300"/>
     <Color x:Key="ShadowColor">#000000</Color>
     <sys:Double x:Key="ShadowOpacity" xmlns:sys="clr-namespace:System;assembly=mscorlib">0.06</sys:Double>
 </ResourceDictionary>

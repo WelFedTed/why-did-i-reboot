@@ -44,12 +44,14 @@ public static class Highlight
             return;
         }
 
-        var brush = tb.TryFindResource("HighlightBg") as Brush ?? Brushes.Yellow;
+        var bg = tb.TryFindResource("HighlightBg") as Brush ?? Brushes.Yellow;
+        // A fixed foreground keeps the mark readable even where the surrounding text is coloured (e.g. the red "failed").
+        var fg = tb.TryFindResource("HighlightFg") as Brush ?? Brushes.Black;
         var pos = 0;
         foreach (var (start, length) in ranges)
         {
             if (start > pos) tb.Inlines.Add(new Run(text[pos..start]));
-            tb.Inlines.Add(new Run(text.Substring(start, length)) { Background = brush, FontWeight = FontWeights.SemiBold });
+            tb.Inlines.Add(new Run(text.Substring(start, length)) { Background = bg, Foreground = fg, FontWeight = FontWeights.SemiBold });
             pos = start + length;
         }
         if (pos < text.Length) tb.Inlines.Add(new Run(text[pos..]));

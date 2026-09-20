@@ -101,8 +101,8 @@
                                                                     <TextBlock Style="{StaticResource HighlightText}" local:Highlight.Text="{Binding Title}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                                                                     <TextBlock Style="{StaticResource HighlightText}" local:Highlight.Text="{Binding Category}" Foreground="{DynamicResource TextMuted}" FontSize="11"
                                                                                Margin="6,0,0,1" VerticalAlignment="Bottom" Visibility="{Binding Category, Converter={StaticResource NullToCollapsed}}"/>
-                                                                    <TextBlock Text="failed" Foreground="#DC2626" FontWeight="SemiBold" FontSize="11" Margin="8,0,0,1" VerticalAlignment="Bottom"
-                                                                               Visibility="{Binding Failed, Converter={StaticResource BoolToVis}}"/>
+                                                                    <TextBlock Style="{StaticResource HighlightText}" local:Highlight.Text="failed" Foreground="#DC2626" FontWeight="SemiBold" FontSize="11"
+                                                                               Margin="8,0,0,1" VerticalAlignment="Bottom" Visibility="{Binding Failed, Converter={StaticResource BoolToVis}}"/>
                                                                 </WrapPanel>
                                                                 <TextBlock Style="{StaticResource HighlightText}" local:Highlight.Text="{Binding Description}" Foreground="{DynamicResource TextSecondary}" FontSize="12"
                                                                            Visibility="{Binding Description, Converter={StaticResource NullToCollapsed}}"/>
