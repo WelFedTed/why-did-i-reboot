@@ -106,6 +106,7 @@
 
             <!-- ============================================================ Expander -->
             <Style x:Key="FlatExpander" TargetType="Expander">
+                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                 <Setter Property="Foreground" Value="{DynamicResource Accent}"/>
                 <Setter Property="FontSize" Value="12"/>
                 <Setter Property="Margin" Value="0,8,0,0"/>
@@ -114,7 +115,7 @@
                         <ControlTemplate TargetType="Expander">
                             <StackPanel>
                                 <ToggleButton IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
-                                              Cursor="Hand" HorizontalAlignment="Left" Focusable="False">
+                                              Cursor="Hand" HorizontalAlignment="Left" Focusable="False" FocusVisualStyle="{x:Null}">
                                     <ToggleButton.Template>
                                         <ControlTemplate TargetType="ToggleButton">
                                             <StackPanel Orientation="Horizontal" Background="Transparent">

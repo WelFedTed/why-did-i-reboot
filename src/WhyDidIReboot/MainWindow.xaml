@@ -65,9 +65,9 @@
 
                         <!-- Updates installed shortly before, grouped (Windows / Security / Drivers / Apps / Other),
                              with descriptions from Windows Update history and KB links -->
-                        <StackPanel Grid.Row="2" Margin="50,8,0,0" Visibility="{Binding HasUpdates, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="Installed updates" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
-                            <ItemsControl ItemsSource="{Binding UpdateGroups}">
+                        <Expander Grid.Row="2" Header="Installed updates" Style="{StaticResource FlatExpander}" Margin="50,8,0,0"
+                                  Visibility="{Binding HasUpdates, Converter={StaticResource BoolToVis}}">
+                            <ItemsControl ItemsSource="{Binding UpdateGroups}" Margin="0,2,0,0">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <StackPanel Margin="0,6,0,0">
@@ -114,7 +114,7 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                        </StackPanel>
+                        </Expander>
 
                         <!-- Reference links, e.g. the Microsoft Learn page for a STOP code -->
                         <ItemsControl Grid.Row="3" ItemsSource="{Binding Links}" Margin="50,6,0,0"

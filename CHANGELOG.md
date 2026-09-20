@@ -16,6 +16,7 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ### Changed
 - Removed the *Event Viewer* button from the header.
+- The *Installed updates* list on a card is collapsed behind a down arrow, like *Details and log records*, so long driver lists no longer push the next card off screen.
 
 ### Fixed
 - Failed updates are marked *failed* in red on cards in the app, as they already were in the HTML export.
