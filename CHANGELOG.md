@@ -8,6 +8,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-20
+
 ### Added
 - **Update now.** When a newer release is found, the Settings button (and the startup banner) turns into *Update now*: one click downloads the matching asset (the self-contained exe, or the framework-dependent zip when `WhyDidIReboot.dll` sits beside the exe), verifies its size, the SHA-256 digest GitHub publishes, the PE header and the file version, swaps the files in beside the running copy, relaunches and cleans up on the next start. If the folder is not writable it explains and points at the release page.
 - **default** preset under *Show:*, left of *everything*: every category except Sleep / wake.
@@ -72,7 +74,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - Export to text or CSV, copy a single entry, open Event Viewer, and jump to a crash dump in Explorer.
 - Headless `--export` mode for scripts.
 
-[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.2.0...v0.3.0
