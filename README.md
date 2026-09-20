@@ -91,6 +91,14 @@ For every boot marker it looks back at what ended the previous session and forwa
 3. A clean shutdown marker with no 1074 is **Clean, no reason**.
 4. Nothing at all is **Unknown**.
 
+## Tests
+
+The analyzer is a pure function over a list of event records, so the tests build synthetic Windows events (shaped like the real ones) and check the category, title, summary, timings and evidence that come out. Exporters and the bugcheck catalog are covered too.
+
+```bash
+dotnet test
+```
+
 ## Project layout
 
 ```
@@ -98,5 +106,9 @@ src/WhyDidIReboot/
   Core/            event log reader, analyzer, bugcheck catalog, exporters (no UI dependencies)
   MainWindow.xaml  the timeline UI
   MainViewModel.cs filters, search, commands
+  ThemeManager.cs  light/dark switching and the persisted preference
+tests/WhyDidIReboot.Tests/
+  Events.cs        builders for synthetic event records
+  *Tests.cs        xUnit tests for the analyzer, exporters and catalog
 tools/make-icon.ps1
 ```

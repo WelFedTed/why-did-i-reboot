@@ -8,6 +8,12 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+### Added
+- xUnit test project (`tests/WhyDidIReboot.Tests`) covering the analyzer's categorisation, timings and evidence over synthetic event records, plus the exporters, bugcheck catalog and formatting helpers. CI runs it on every push and publishes the results.
+
+### Changed
+- Added a repo-level `nuget.config` pointing at nuget.org so restores work on machines with no NuGet sources configured.
+
 ## [0.2.0] - 2026-09-20
 
 ### Added
