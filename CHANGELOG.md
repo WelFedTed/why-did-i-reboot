@@ -8,6 +8,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-09-20
+
 ### Changed
 - The *Installed updates* and *Details and log records* labels are now searchable and highlighted like the rest of a card. A match on the label alone does not open the block.
 
@@ -80,7 +82,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - Export to text or CSV, copy a single entry, open Event Viewer, and jump to a crash dump in Explorer.
 - Headless `--export` mode for scripts.
 
-[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.3.0...v0.4.0

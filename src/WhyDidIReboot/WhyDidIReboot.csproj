@@ -12,7 +12,7 @@
     <Product>Why Did I Reboot</Product>
     <AssemblyTitle>Why Did I Reboot</AssemblyTitle>
     <Description>A plain-English history of every restart, shutdown and crash on this PC.</Description>
-    <Version>0.6.0</Version>
+    <Version>0.6.1</Version>
     <Company>WelFedTed</Company>
     <Copyright>Copyright © 2026</Copyright>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
