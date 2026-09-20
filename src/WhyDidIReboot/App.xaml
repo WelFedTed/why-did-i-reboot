@@ -11,6 +11,11 @@
 
             <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
 
+            <!-- Shows the Label property of an option record in a ComboBox. -->
+            <DataTemplate x:Key="LabelTemplate">
+                <TextBlock Text="{Binding Label}"/>
+            </DataTemplate>
+
             <!-- ============================================================ Buttons -->
             <Style x:Key="ToolButton" TargetType="Button">
                 <Setter Property="Padding" Value="12,6"/>

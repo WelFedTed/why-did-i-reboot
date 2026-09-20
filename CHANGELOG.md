@@ -8,6 +8,9 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+### Added
+- **Settings** dialog, opened from a cog button at the right of the header. It holds the theme picker (moved out of the header), a **Check for updates** button that compares the running version with the latest GitHub Release and links to the download page, and the version number with a link to the repository at the bottom.
+
 ### Changed
 - GitHub Releases are now titled with just the version tag (for example `v0.3.0`), and the assets are named `WhyDidIReboot.exe` and `WhyDidIReboot-framework-dependent.zip` without a version in the file name. Existing releases were renamed to match.
 

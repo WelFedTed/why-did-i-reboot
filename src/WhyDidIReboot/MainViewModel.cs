@@ -154,6 +154,92 @@ public sealed class MainViewModel : INotifyPropertyChanged
         });
     }
 
+    // ---------------------------------------------------------------- version and updates
+
+    private static readonly Lazy<System.Net.Http.HttpClient> Http = new(() =>
+    {
+        var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd($"WhyDidIReboot/{VersionString}");
+        return client;
+    });
+
+    /// <summary>The version stamped from the csproj, e.g. "0.3.0" (any "+commit" suffix stripped).</summary>
+    public static string VersionString
+    {
+        get
+        {
+            var info = typeof(MainViewModel).Assembly
+                .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+                .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+                .FirstOrDefault()?.InformationalVersion;
+            if (!string.IsNullOrWhiteSpace(info))
+            {
+                var plus = info.IndexOf('+');
+                return plus >= 0 ? info[..plus] : info;
+            }
+            var v = typeof(MainViewModel).Assembly.GetName().Version;
+            return v is null ? "0.0.0" : UpdateChecker.Normalise(v).ToString();
+        }
+    }
+
+    public static Version CurrentVersion => UpdateChecker.ParseTag(VersionString) ?? new Version(0, 0, 0);
+
+    private string _updateStatus = "Click to see whether a newer release is available.";
+    private string? _updateUrl;
+    private bool _hasUpdate;
+    private bool _isCheckingUpdates;
+
+    public string VersionText => $"Why Did I Reboot {VersionString}";
+    public string UpdateStatus { get => _updateStatus; private set { _updateStatus = value; OnPropertyChanged(); } }
+    public string? UpdateUrl { get => _updateUrl; private set { _updateUrl = value; OnPropertyChanged(); } }
+    public bool HasUpdate { get => _hasUpdate; private set { _hasUpdate = value; OnPropertyChanged(); } }
+    public bool IsCheckingUpdates { get => _isCheckingUpdates; private set { _isCheckingUpdates = value; OnPropertyChanged(); } }
+
+    public ICommand CheckForUpdatesCommand => _checkForUpdates ??= new RelayCommand(async _ => await CheckForUpdatesAsync(), _ => !IsCheckingUpdates);
+    private RelayCommand? _checkForUpdates;
+
+    public ICommand OpenUrlCommand => _openUrl ??= new RelayCommand(p =>
+    {
+        if (p is not string url || !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) return;
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
+        catch { /* no browser association */ }
+    });
+    private RelayCommand? _openUrl;
+
+    public async Task CheckForUpdatesAsync()
+    {
+        if (IsCheckingUpdates) return;
+        IsCheckingUpdates = true;
+        HasUpdate = false;
+        UpdateUrl = null;
+        UpdateStatus = "Checking GitHub for the latest release…";
+        try
+        {
+            var info = await UpdateChecker.CheckAsync(Http.Value, CurrentVersion);
+            if (info.IsNewer)
+            {
+                UpdateUrl = info.Url;
+                HasUpdate = true;
+                UpdateStatus = $"Version {info.Latest} is available. You have {VersionString}.";
+            }
+            else
+            {
+                UpdateStatus = $"You have the latest version ({VersionString}).";
+            }
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus = "Could not check for updates: " + (ex.InnerException?.Message ?? ex.Message);
+        }
+        finally
+        {
+            IsCheckingUpdates = false;
+            CommandManager.InvalidateRequerySuggested();   // re-enable the button without waiting for input
+        }
+    }
+
+    // ---------------------------------------------------------------- bindings
+
     public ObservableCollection<CategoryFilter> Categories { get; }
     public IReadOnlyList<RangeOption> Ranges { get; }
     public IReadOnlyList<ThemeOption> Themes { get; }
@@ -226,6 +312,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             IsBusy = false;
             View.Refresh();
             UpdateShown();
+            CommandManager.InvalidateRequerySuggested();
         }
     }
 

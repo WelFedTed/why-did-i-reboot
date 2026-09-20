@@ -13,10 +13,6 @@
         <local:TimeConverter x:Key="Time"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
-        <DataTemplate x:Key="LabelTemplate">
-            <TextBlock Text="{Binding Label}"/>
-        </DataTemplate>
-
         <DataTemplate x:Key="EntryCard">
             <Border Background="{DynamicResource SurfaceBg}" CornerRadius="10" Margin="0,0,0,10"
                     BorderBrush="{DynamicResource SurfaceBorder}" BorderThickness="1">
@@ -141,25 +137,26 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <ComboBox Style="{StaticResource ThemedComboBox}" ItemsSource="{Binding Ranges}" SelectedItem="{Binding Range}" Width="190"
                               ItemTemplate="{StaticResource LabelTemplate}"/>
-                    <ComboBox Style="{StaticResource ThemedComboBox}" ItemsSource="{Binding Themes}" SelectedItem="{Binding Theme}" Width="130" Margin="6,0,0,0"
-                              ItemTemplate="{StaticResource LabelTemplate}" ToolTip="Colour theme"/>
-                    <Button Style="{StaticResource ToolButton}" Command="{Binding RefreshCommand}" ToolTip="Re-read the event log (F5)">
+                    <Button Style="{StaticResource ToolButton}" Command="{Binding RefreshCommand}" ToolTip="Re-read the event log (F5)" AutomationProperties.Name="Refresh">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE72C;" FontFamily="{StaticResource IconFont}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                             <TextBlock Text="Refresh"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource ToolButton}" Click="Export_Click" ToolTip="Save what is shown as an HTML, text or CSV file">
+                    <Button Style="{StaticResource ToolButton}" Click="Export_Click" ToolTip="Save what is shown as an HTML, text or CSV file" AutomationProperties.Name="Export">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xEDE1;" FontFamily="{StaticResource IconFont}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                             <TextBlock Text="Export"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource ToolButton}" Click="EventViewer_Click" ToolTip="Open the Windows Event Viewer">
+                    <Button Style="{StaticResource ToolButton}" Click="EventViewer_Click" ToolTip="Open the Windows Event Viewer" AutomationProperties.Name="Event Viewer">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE9D9;" FontFamily="{StaticResource IconFont}" Margin="0,0,6,0" VerticalAlignment="Center"/>
                             <TextBlock Text="Event Viewer"/>
                         </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ToolButton}" Click="Settings_Click" ToolTip="Settings" AutomationProperties.Name="Settings" Padding="8,6" Width="36">
+                        <TextBlock Text="&#xE713;" FontFamily="{StaticResource IconFont}" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                     </Button>
                 </StackPanel>
             </Grid>

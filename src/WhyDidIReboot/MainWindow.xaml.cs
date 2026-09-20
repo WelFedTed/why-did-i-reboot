@@ -54,6 +54,12 @@ public partial class MainWindow : Window
         }
     }
 
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SettingsWindow(_vm) { Owner = this };
+        dialog.ShowDialog();
+    }
+
     private void EventViewer_Click(object sender, RoutedEventArgs e)
     {
         try

@@ -10,9 +10,13 @@ No installer, no admin rights, no telemetry. It only reads the `System` and `App
 
 ![screenshot](docs/screenshot.png)
 
-Dark mode follows the Windows setting, or can be forced from the header:
+Dark mode follows the Windows setting, or can be forced from Settings:
 
 ![dark mode screenshot](docs/screenshot-dark.png)
+
+Settings (the cog in the header) holds the theme picker, an update check against GitHub Releases, and the version:
+
+![settings dialog](docs/settings.png)
 
 ## Features
 
@@ -24,7 +28,8 @@ Dark mode follows the Windows setting, or can be forced from the header:
 - **Live kernel events** (GPU hangs, resource timeouts) that did *not* reboot the machine, because they often precede the crash that does.
 - **Filters**: toggle categories, quick presets (everything / reboots only / problems only / none), free-text search across titles, KB numbers, STOP codes and raw messages, and a date range from 7 days to the whole log.
 - **Export** what is shown as a self-contained `.html` report (same cards, collapsible details, follows the reader's light/dark preference, prints cleanly), a `.txt` report or `.csv`, or copy a single entry to the clipboard. Also works headless from the command line.
-- **Light and dark themes**: follows the Windows app theme by default, or pick Light / Dark from the header. The choice is remembered in `%LocalAppData%\WhyDidIReboot\settings.json`.
+- **Light and dark themes**: follows the Windows app theme by default, or pick Light / Dark in Settings (the cog in the header). The choice is remembered in `%LocalAppData%\WhyDidIReboot\settings.json`.
+- **Check for updates** from Settings: compares the running version with the latest GitHub Release and links to the download page. Nothing is checked automatically and nothing is sent beyond the request itself.
 - Buttons to jump to Event Viewer or straight to a crash dump in Explorer.
 
 ## Build and run
