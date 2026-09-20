@@ -164,24 +164,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         return client;
     });
 
-    /// <summary>The version stamped from the csproj, e.g. "0.3.0" (any "+commit" suffix stripped).</summary>
-    public static string VersionString
-    {
-        get
-        {
-            var info = typeof(MainViewModel).Assembly
-                .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
-                .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
-                .FirstOrDefault()?.InformationalVersion;
-            if (!string.IsNullOrWhiteSpace(info))
-            {
-                var plus = info.IndexOf('+');
-                return plus >= 0 ? info[..plus] : info;
-            }
-            var v = typeof(MainViewModel).Assembly.GetName().Version;
-            return v is null ? "0.0.0" : UpdateChecker.Normalise(v).ToString();
-        }
-    }
+    /// <summary>The version stamped from the csproj, e.g. "0.7.0".</summary>
+    public static string VersionString => AppInfo.VersionString;
 
     public static Version CurrentVersion => UpdateChecker.ParseTag(VersionString) ?? new Version(0, 0, 0);
 

@@ -172,12 +172,14 @@ public class AnalyzerTests
     public void Blue_screen_is_decoded_with_stop_code_and_dump()
     {
         var boot = T0.AddHours(1);
+        // A path that cannot exist on the machine running the tests, so "Dump file present" is deterministic.
+        var dump = @"C:\Windows\Minidump\" + Guid.NewGuid().ToString("N") + ".dmp";
         var events = new List<RawEvent>
         {
             Boot(T0),
             Boot(boot), BootType(boot.AddMilliseconds(300), "0"),
             KernelPower41(boot.AddSeconds(2), 159),
-            Bugcheck1001(boot.AddSeconds(7), "0x0000009f", @"C:\Windows\Minidump\071226-7000-01.dmp", "d1386807-5984-4a9d-8956-dac2a3f565c1"),
+            Bugcheck1001(boot.AddSeconds(7), "0x0000009f", dump, "d1386807-5984-4a9d-8956-dac2a3f565c1"),
             WerBlueScreen(boot.AddDays(3), "d1386807-5984-4a9d-8956-dac2a3f565c1"),
         };
 
@@ -186,7 +188,7 @@ public class AnalyzerTests
         Assert.Equal("Crashed with a blue screen: DRIVER_POWER_STATE_FAILURE", e.Title);
         Assert.Contains("STOP 0x0000009F", e.Summary);
         Assert.Equal("0x0000009F (DRIVER_POWER_STATE_FAILURE)", Detail(e, "STOP code"));
-        Assert.Equal(@"C:\Windows\Minidump\071226-7000-01.dmp", e.DumpPath);
+        Assert.Equal(dump, e.DumpPath);
         Assert.Equal("No", Detail(e, "Dump file present"));
         Assert.Null(e.ShutdownTime);
         Assert.Equal(boot, e.Timestamp);

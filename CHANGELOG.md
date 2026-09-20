@@ -10,6 +10,7 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ### Changed
 - The app shows "N of M shown" under the search box, like the HTML report, and the status bar's right corner shows the app version (e.g. v0.7.0) instead of the count.
+- The HTML report's footer and the text report's header name the app version that produced them.
 
 ## [0.7.0] - 2026-09-20
 
