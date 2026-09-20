@@ -52,7 +52,40 @@ public static class WinDbgLocator
     {
         if (logPath.IndexOfAny(new[] { ' ', '"', ';' }) >= 0)
             throw new ArgumentException("The log path must not contain spaces, quotes or semicolons.", nameof(logPath));
-        return $"-z \"{dumpPath}\" -c \".logopen {logPath}; !analyze -v; .logclose; q\"";
+        // "qq" rather than "q": WinDbgX treats a single q as quitting a remote client and stays open.
+        return $"-z \"{dumpPath}\" -c \".logopen {logPath}; !analyze -v; .logclose; qq\"";
+    }
+
+    private static readonly string[] DebuggerProcessNames = { "DbgX.Shell", "WinDbgX", "windbg", "EngHost" };
+
+    /// <summary>
+    /// Closes debugger windows that are showing <paramref name="dumpPath"/> (title match), politely first,
+    /// then forcibly after <paramref name="grace"/>. Returns how many were closed.
+    /// </summary>
+    public static int CloseDebuggerWindowsFor(string dumpPath, TimeSpan grace)
+    {
+        var name = Path.GetFileName(dumpPath);
+        var closed = 0;
+        foreach (var proc in System.Diagnostics.Process.GetProcesses())
+        {
+            try
+            {
+                if (!DebuggerProcessNames.Contains(proc.ProcessName, StringComparer.OrdinalIgnoreCase)) continue;
+                var title = proc.MainWindowTitle;
+                if (string.IsNullOrEmpty(title) || !title.Contains(name, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!proc.CloseMainWindow() || !proc.WaitForExit((int)grace.TotalMilliseconds)) proc.Kill(entireProcessTree: true);
+                closed++;
+            }
+            catch
+            {
+                // Access denied or already gone.
+            }
+            finally
+            {
+                proc.Dispose();
+            }
+        }
+        return closed;
     }
 
     /// <summary>

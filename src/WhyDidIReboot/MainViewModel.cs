@@ -512,6 +512,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 return;
             }
             BusyText = "Preparing the prompt…";
+            // The session was told to quit (qq); close the WinDbg window for this dump if it is still there.
+            await Task.Run(() => WinDbgLocator.CloseDebuggerWindowsFor(dump, TimeSpan.FromSeconds(5)));
 
             var summary = CrashAnalysis.Summarize(text);
             var entryText = TextExporter.EntryToText(entry);

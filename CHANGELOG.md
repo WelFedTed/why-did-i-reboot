@@ -16,6 +16,7 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - While Ask AI waits for WinDbg, the app shows a spinner with what is happening and a Cancel link.
 
 ### Fixed
+- WinDbg stayed open after an Ask AI analysis: WinDbgX treats a single `q` as "quit a remote client". The session now ends with `qq`, and the app closes any WinDbg window still showing that dump once the log is complete.
 - Ask AI failed with "Unable to create a debug session" because the log path inside WinDbg's `-c` command was quoted, which its parser does not support. The log now goes to a folder without spaces (Public profile, then ProgramData, then Temp) and is passed unquoted.
 
 ## [0.8.0] - 2026-09-20

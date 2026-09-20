@@ -151,7 +151,7 @@ public class CrashAnalysisTests
     public void Analyze_to_log_arguments_open_log_analyse_close_and_quit_without_inner_quotes()
     {
         var a = WinDbgLocator.AnalyzeToLogArguments(@"C:\Windows\Minidump\x.dmp", @"C:\Users\Public\WhyDidIReboot\analysis\x.analyze.txt");
-        Assert.Equal("-z \"C:\\Windows\\Minidump\\x.dmp\" -c \".logopen C:\\Users\\Public\\WhyDidIReboot\\analysis\\x.analyze.txt; !analyze -v; .logclose; q\"", a);
+        Assert.Equal("-z \"C:\\Windows\\Minidump\\x.dmp\" -c \".logopen C:\\Users\\Public\\WhyDidIReboot\\analysis\\x.analyze.txt; !analyze -v; .logclose; qq\"", a);
         Assert.DoesNotContain("\\\"", a);   // escaped quotes broke WinDbg's -c parsing
 
         Assert.Throws<ArgumentException>(() => WinDbgLocator.AnalyzeToLogArguments(@"C:\x.dmp", @"C:\Users\John Smith\x.txt"));
