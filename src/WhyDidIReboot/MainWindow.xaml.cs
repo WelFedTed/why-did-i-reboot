@@ -28,6 +28,7 @@ public partial class MainWindow : Window
             if (e.Key == Key.F5) { _ = _vm.RefreshAsync(); e.Handled = true; }
             if (e.Key == Key.F9) { BrowseOfflineLogs(); e.Handled = true; }
             if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { SearchBox.Focus(); SearchBox.SelectAll(); e.Handled = true; }
+            if (e.Key == Key.Escape && SearchBox.IsKeyboardFocusWithin && _vm.HasSearch) { _vm.SearchText = ""; e.Handled = true; }
         };
     }
 

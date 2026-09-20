@@ -12,7 +12,14 @@
         <local:NullToCollapsedConverter x:Key="NullToCollapsed"/>
         <local:TimeConverter x:Key="Time"/>
         <local:ExternalLinkConverter x:Key="ExternalLink"/>
+        <local:SectionMatchConverter x:Key="SectionMatch"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- A TextBlock whose text is set through Highlight.Text so the current search terms are highlighted. -->
+        <Style x:Key="HighlightText" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="local:Highlight.Terms" Value="{Binding DataContext.SearchTerms, RelativeSource={RelativeSource AncestorType=Window}}"/>
+        </Style>
 
         <DataTemplate x:Key="EntryCard">
             <Border Background="{DynamicResource SurfaceBg}" CornerRadius="10" Margin="0,0,0,10"
@@ -50,8 +57,8 @@
                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
-                                <TextBlock Text="{Binding Converter={StaticResource Subtitle}}" FontSize="12" Foreground="{DynamicResource TextMuted}" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                                <TextBlock Style="{StaticResource HighlightText}" local:Highlight.Text="{Binding Title}" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                <TextBlock Style="{StaticResource HighlightText}" local:Highlight.Text="{Binding Converter={StaticResource Subtitle}}" FontSize="12" Foreground="{DynamicResource TextMuted}" Margin="0,2,0,0"/>
                             </StackPanel>
                             <Border Grid.Column="2" CornerRadius="10" Padding="8,3" Margin="12,0,0,0" VerticalAlignment="Top"
                                     Background="{Binding Category, Converter={StaticResource Cat}, ConverterParameter=Tint}">
@@ -61,12 +68,19 @@
                         </Grid>
 
                         <!-- Summary -->
-                        <TextBlock Grid.Row="1" Text="{Binding Summary}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" Margin="50,8,0,0" LineHeight="19"/>
+                        <TextBlock Grid.Row="1" Style="{StaticResource HighlightText}" local:Highlight.Text="{Binding Summary}" Foreground="{DynamicResource TextSecondary}" Margin="50,8,0,0" LineHeight="19"/>
 
                         <!-- Updates installed shortly before, grouped (Windows / Security / Drivers / Apps / Other),
                              with descriptions from Windows Update history and KB links -->
                         <Expander Grid.Row="2" Header="Installed updates" Style="{StaticResource FlatExpander}" Margin="50,8,0,0"
                                   Visibility="{Binding HasUpdates, Converter={StaticResource BoolToVis}}">
+                            <!-- Opens by itself when a search term is found among the updates -->
+                            <Expander.IsExpanded>
+                                <MultiBinding Converter="{StaticResource SectionMatch}" ConverterParameter="updates" Mode="OneWay">
+                                    <Binding/>
+                                    <Binding Path="DataContext.SearchTerms" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                </MultiBinding>
+                            </Expander.IsExpanded>
                             <ItemsControl ItemsSource="{Binding UpdateGroups}" Margin="0,2,0,0">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
@@ -83,23 +97,14 @@
                                                             </Grid.ColumnDefinitions>
                                                             <TextBlock Text="•" Foreground="{DynamicResource TextMuted}" Margin="4,0,8,0"/>
                                                             <StackPanel Grid.Column="1">
-                                                                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}">
-                                                                    <Run Text="{Binding Title, Mode=OneWay}" FontWeight="SemiBold"/>
-                                                                    <Run Text="{Binding Category, Mode=OneWay}" Foreground="{DynamicResource TextMuted}" FontSize="11"/>
-                                                                    <Run Foreground="#DC2626" FontWeight="SemiBold" FontSize="11">
-                                                                        <Run.Style>
-                                                                            <Style TargetType="Run">
-                                                                                <Setter Property="Text" Value=""/>
-                                                                                <Style.Triggers>
-                                                                                    <DataTrigger Binding="{Binding Failed}" Value="True">
-                                                                                        <Setter Property="Text" Value="  failed"/>
-                                                                                    </DataTrigger>
-                                                                                </Style.Triggers>
-                                                                            </Style>
-                                                                        </Run.Style>
-                                                                    </Run>
-                                                                </TextBlock>
-                                                                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="12"
+                                                                <WrapPanel>
+                                                                    <TextBlock Style="{StaticResource HighlightText}" local:Highlight.Text="{Binding Title}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                                                    <TextBlock Style="{StaticResource HighlightText}" local:Highlight.Text="{Binding Category}" Foreground="{DynamicResource TextMuted}" FontSize="11"
+                                                                               Margin="6,0,0,1" VerticalAlignment="Bottom" Visibility="{Binding Category, Converter={StaticResource NullToCollapsed}}"/>
+                                                                    <TextBlock Text="failed" Foreground="#DC2626" FontWeight="SemiBold" FontSize="11" Margin="8,0,0,1" VerticalAlignment="Bottom"
+                                                                               Visibility="{Binding Failed, Converter={StaticResource BoolToVis}}"/>
+                                                                </WrapPanel>
+                                                                <TextBlock Style="{StaticResource HighlightText}" local:Highlight.Text="{Binding Description}" Foreground="{DynamicResource TextSecondary}" FontSize="12"
                                                                            Visibility="{Binding Description, Converter={StaticResource NullToCollapsed}}"/>
                                                                 <Button Style="{StaticResource LinkButton}" HorizontalAlignment="Left" Margin="0,2,0,0"
                                                                         Content="{Binding LinkLabel, Converter={StaticResource ExternalLink}}"
@@ -132,6 +137,13 @@
 
                         <!-- Details -->
                         <Expander Grid.Row="4" Header="Details and log records" Style="{StaticResource FlatExpander}" Margin="50,8,0,0">
+                            <!-- Opens by itself when a search term is found among the details or log records -->
+                            <Expander.IsExpanded>
+                                <MultiBinding Converter="{StaticResource SectionMatch}" ConverterParameter="details" Mode="OneWay">
+                                    <Binding/>
+                                    <Binding Path="DataContext.SearchTerms" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                </MultiBinding>
+                            </Expander.IsExpanded>
                             <StackPanel Margin="0,8,0,0">
                                 <ItemsControl ItemsSource="{Binding Details}">
                                     <ItemsControl.ItemTemplate>
@@ -142,7 +154,7 @@
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
                                                 <TextBlock Text="{Binding Key}" Foreground="{DynamicResource TextMuted}" FontSize="12"/>
-                                                <TextBox Grid.Column="1" Text="{Binding Value, Mode=OneWay}" Style="{StaticResource ReadOnlyText}" FontSize="12"/>
+                                                <TextBlock Grid.Column="1" Style="{StaticResource HighlightText}" local:Highlight.Text="{Binding Value}" Foreground="{DynamicResource TextPrimary}" FontSize="12"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
@@ -154,14 +166,17 @@
                                         <DataTemplate>
                                             <Border Background="{DynamicResource EvidenceBg}" CornerRadius="6" Padding="10,6" Margin="0,0,0,4">
                                                 <StackPanel>
-                                                    <TextBlock FontSize="11" Foreground="{DynamicResource TextMuted}">
-                                                        <Run Text="{Binding Time, Mode=OneWay, Converter={StaticResource Time}}" FontWeight="SemiBold"/>
-                                                        <Run Text="  ·  "/><Run Text="{Binding Log, Mode=OneWay}"/>
-                                                        <Run Text="  ·  Event "/><Run Text="{Binding Id, Mode=OneWay}"/>
-                                                        <Run Text="  ·  "/><Run Text="{Binding Provider, Mode=OneWay}"/>
-                                                    </TextBlock>
-                                                    <TextBox Text="{Binding Message, Mode=OneWay}" Style="{StaticResource ReadOnlyText}" Margin="0,2,0,0"
-                                                             FontFamily="Cascadia Mono, Consolas" FontSize="11.5" Foreground="{DynamicResource TextSecondary}"/>
+                                                    <WrapPanel TextBlock.FontSize="11" TextBlock.Foreground="{DynamicResource TextMuted}">
+                                                        <TextBlock Text="{Binding Time, Mode=OneWay, Converter={StaticResource Time}}" FontWeight="SemiBold"/>
+                                                        <TextBlock Text="  ·  "/>
+                                                        <TextBlock Style="{StaticResource HighlightText}" local:Highlight.Text="{Binding Log}"/>
+                                                        <TextBlock Text="  ·  Event "/>
+                                                        <TextBlock Style="{StaticResource HighlightText}" local:Highlight.Text="{Binding Id}"/>
+                                                        <TextBlock Text="  ·  "/>
+                                                        <TextBlock Style="{StaticResource HighlightText}" local:Highlight.Text="{Binding Provider}"/>
+                                                    </WrapPanel>
+                                                    <TextBlock Style="{StaticResource HighlightText}" local:Highlight.Text="{Binding Message}" Margin="0,2,0,0"
+                                                               FontFamily="Cascadia Mono, Consolas" FontSize="11.5" Foreground="{DynamicResource TextSecondary}"/>
                                                 </StackPanel>
                                             </Border>
                                         </DataTemplate>
@@ -297,12 +312,30 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="&#xE721;" FontFamily="{StaticResource IconFont}" FontSize="13" Foreground="{DynamicResource TextFaint}"
                                Margin="9,0,6,0" VerticalAlignment="Center"/>
+                    <!-- Clear button, shown only while there is something to clear -->
+                    <Button Grid.Column="2" Width="24" Height="24" Margin="0,0,3,0" Cursor="Hand" ToolTip="Clear search (Esc)" AutomationProperties.Name="Clear search"
+                            Command="{Binding ClearSearchCommand}" Visibility="{Binding HasSearch, Converter={StaticResource BoolToVis}}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="bd" Background="Transparent" CornerRadius="4">
+                                    <TextBlock Text="&#xE711;" FontFamily="{StaticResource IconFont}" FontSize="11" Foreground="{DynamicResource TextMuted}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="bd" Property="Background" Value="{DynamicResource ControlHover}"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
                     <Grid Grid.Column="1">
                         <TextBox x:Name="SearchBox" Style="{StaticResource ThemedTextBox}" BorderThickness="0" Background="Transparent" Padding="0"
-                                 VerticalContentAlignment="Center" VerticalAlignment="Stretch" Margin="0,0,8,0"
+                                 VerticalContentAlignment="Center" VerticalAlignment="Stretch" Margin="0,0,4,0"
                                  Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=200}"/>
                         <TextBlock Text="Search titles, KB numbers, STOP codes…" Foreground="{DynamicResource TextFaint}"
                                    Margin="2,0,8,0" VerticalAlignment="Center" IsHitTestVisible="False" TextTrimming="CharacterEllipsis">

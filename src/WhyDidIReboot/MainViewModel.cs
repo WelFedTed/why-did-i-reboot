@@ -392,11 +392,30 @@ public sealed class MainViewModel : INotifyPropertyChanged
         set { if (!ReferenceEquals(_theme, value) && value is not null) { _theme = value; OnPropertyChanged(); ThemeManager.SetMode(value.Mode); } }
     }
 
+    private string[] _searchTerms = Array.Empty<string>();
+
     public string SearchText
     {
         get => _searchText;
-        set { if (_searchText != value) { _searchText = value; OnPropertyChanged(); View.Refresh(); UpdateShown(); } }
+        set
+        {
+            if (_searchText == value) return;
+            _searchText = value ?? "";
+            _searchTerms = SearchIndex.Terms(_searchText);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SearchTerms));
+            OnPropertyChanged(nameof(HasSearch));
+            View.Refresh();
+            UpdateShown();
+        }
     }
+
+    /// <summary>The words being searched for; cards highlight them and open sections that contain them.</summary>
+    public string[] SearchTerms => _searchTerms;
+    public bool HasSearch => _searchTerms.Length > 0;
+
+    public ICommand ClearSearchCommand => _clearSearch ??= new RelayCommand(_ => SearchText = "");
+    private RelayCommand? _clearSearch;
 
     public bool IsBusy { get => _isBusy; private set { _isBusy = value; OnPropertyChanged(); OnPropertyChanged(nameof(ShowEmpty)); } }
     public string StatusText { get => _statusText; private set { _statusText = value; OnPropertyChanged(); } }
@@ -465,12 +484,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         if (o is not RebootEntry e) return false;
         var cat = Categories.FirstOrDefault(c => c.Category == e.Category);
         if (cat is { IsChecked: false }) return false;
-        if (string.IsNullOrWhiteSpace(_searchText)) return true;
-        var q = _searchText.Trim();
-        return e.Title.Contains(q, StringComparison.OrdinalIgnoreCase)
-            || e.Summary.Contains(q, StringComparison.OrdinalIgnoreCase)
-            || e.Details.Any(d => d.Value.Contains(q, StringComparison.OrdinalIgnoreCase))
-            || e.Evidence.Any(v => v.Message.Contains(q, StringComparison.OrdinalIgnoreCase));
+        return SearchIndex.Matches(e, _searchTerms);
     }
 
     private void UpdateShown() => ShownCount = View.Cast<object>().Count();
@@ -521,6 +535,18 @@ public sealed class NullToCollapsedConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
         value is null || value is string { Length: 0 } ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotSupportedException();
+}
+
+/// <summary>
+/// [entry, search terms] → true when a term appears in the section named by the parameter
+/// ("updates" or "details"), so that expander opens automatically.
+/// </summary>
+public sealed class SectionMatchConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture) =>
+        values.Length >= 2 && values[0] is RebootEntry e && values[1] is string[] terms && parameter is string section
+        && SearchIndex.SectionMatches(e, terms, section);
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) => throw new NotSupportedException();
 }
 
 /// <summary>Appends an external-link arrow to a label, for link buttons whose Content is a plain string.</summary>

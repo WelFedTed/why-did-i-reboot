@@ -14,6 +14,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - **Installed updates** heading on cards, with updates grouped into Windows, Security, Drivers, Apps and Other. Driver updates now get their descriptions from Windows Update history too (it was keyed by KB number only).
 - **Driver labels.** Known driver and system module names are followed by a plain-English label wherever they appear in summaries, details or log messages, e.g. `nvlddmkm.sys (NVIDIA kernel-mode display driver)`, `Netwtw04.sys (Intel wireless adapter driver)`.
 
+- **Search improvements.** An ✕ button (or Esc) clears the search box. Search now covers everything on a card: title, summary, category, dates, installed update titles, KB numbers, descriptions, classifications and groups, details, log records and link labels. Multi-word queries require every word to appear somewhere on the card. Matches are highlighted on the cards, and a collapsed *Installed updates* or *Details and log records* block opens by itself when a match is inside it. Static labels such as the *Installed updates* heading are not searched.
+
 ### Changed
 - Removed the *Event Viewer* button from the header.
 - The *Installed updates* list on a card is collapsed behind a down arrow, like *Details and log records*, so long driver lists no longer push the next card off screen.
