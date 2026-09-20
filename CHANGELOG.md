@@ -8,6 +8,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-20
+
 ### Added
 - **Search link** on crash and live-kernel cards, between *Debug in WinDbg* and *Ask AI*. It searches the web for the bugcheck name and short code plus any driver file names mentioned on the card (e.g. `DRIVER_POWER_STATE_FAILURE 0x9F iaStorAC.sys pci.sys`).
 - **Preferred search engine** in Settings: Google, Bing, DuckDuckGo, Brave or Startpage. The link and menu item are named after it ("Search Bing").
@@ -128,7 +130,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - Export to text or CSV, copy a single entry, open Event Viewer, and jump to a crash dump in Explorer.
 - Headless `--export` mode for scripts.
 
-[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.6.1...v0.7.0
