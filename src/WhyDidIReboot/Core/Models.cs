@@ -186,6 +186,10 @@ public sealed class RebootEntry
     public bool HasLinks => Links.Count > 0;
     public bool HasUpdates => Updates.Count > 0;
 
+    /// <summary>Web search text for a crash (bugcheck name, code, driver names), or null for cards without a code.</summary>
+    public string? SearchQuery => WebSearch.QueryFor(this);
+    public bool HasSearchQuery => SearchQuery is not null;
+
     /// <summary>Updates bucketed by <see cref="UpdateClassifier"/> group, in display order, empty groups omitted.</summary>
     public IReadOnlyList<UpdateGroup> UpdateGroups =>
         UpdateClassifier.Order

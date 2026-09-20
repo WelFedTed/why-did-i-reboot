@@ -8,6 +8,14 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+### Added
+- **Search link** on crash and live-kernel cards, between *Debug in WinDbg* and *Ask AI*. It searches the web for the bugcheck name and short code plus any driver file names mentioned on the card (e.g. `DRIVER_POWER_STATE_FAILURE 0x9F iaStorAC.sys pci.sys`).
+- **Preferred search engine** in Settings: Google, Bing, DuckDuckGo, Brave or Startpage. The link and menu item are named after it ("Search Bing").
+- **Right-click menu** on every card with the same actions as the links: Copy this entry, Open dump folder, Debug in WinDbg, Search, Ask AI. Items that do not apply to the card are hidden.
+
+### Changed
+- The Refresh overlay uses the same spinning ring as Ask AI instead of a horizontal bar, and Settings shows the ring beside the update button while checking or installing.
+
 ## [0.9.0] - 2026-09-20
 
 ### Added

@@ -442,6 +442,34 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    // ---------------------------------------------------------------- web search
+
+    public IReadOnlyList<SearchEngine> SearchEngines => WebSearch.Engines;
+
+    public SearchEngine SearchEngine
+    {
+        get => WebSearch.EngineByName(AppSettings.Current.SearchEngine);
+        set
+        {
+            if (value is null || value.Name == AppSettings.Current.SearchEngine) return;
+            AppSettings.Current.SearchEngine = value.Name;
+            AppSettings.Current.Save();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SearchEngineLabel));
+        }
+    }
+
+    /// <summary>"Search Google", "Search Bing", … for the card link and the context menu.</summary>
+    public string SearchEngineLabel => SearchEngine.ButtonLabel;
+
+    /// <summary>Searches the web for the card's bugcheck name, code and driver names.</summary>
+    public ICommand SearchWebCommand => _searchWeb ??= new RelayCommand(p =>
+    {
+        if (p is not RebootEntry { SearchQuery: { } query }) return;
+        OpenExternal(SearchEngine.Url(query), SearchEngine.Url(query));
+    });
+    private RelayCommand? _searchWeb;
+
     // ---------------------------------------------------------------- Ask AI
 
     public IReadOnlyList<AiChatService> AiChats => CrashAnalysis.Services;

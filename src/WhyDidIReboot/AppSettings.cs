@@ -32,6 +32,9 @@ public sealed class AppSettings
     /// <summary>Which chat service "Ask AI" opens: ChatGPT, Microsoft Copilot, Perplexity or Claude.</summary>
     public string AiChat { get; set; } = "ChatGPT";
 
+    /// <summary>Which search engine the "Search …" link on crash cards uses: Google, Bing, DuckDuckGo, Brave or Startpage.</summary>
+    public string SearchEngine { get; set; } = "Google";
+
     public static AppSettings Load()
     {
         try

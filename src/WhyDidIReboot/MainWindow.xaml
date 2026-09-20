@@ -23,11 +23,29 @@
         </Style>
 
         <DataTemplate x:Key="EntryCard">
+            <!-- Tag carries the view model so the context menu (which sits outside the visual tree) can reach the commands. -->
             <Border Background="{DynamicResource SurfaceBg}" CornerRadius="10" Margin="0,0,0,10"
-                    BorderBrush="{DynamicResource SurfaceBorder}" BorderThickness="1">
+                    BorderBrush="{DynamicResource SurfaceBorder}" BorderThickness="1"
+                    Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="6" ShadowDepth="1" Color="{DynamicResource ShadowColor}" Opacity="{DynamicResource ShadowOpacity}"/>
                 </Border.Effect>
+                <Border.ContextMenu>
+                    <!-- Right-click alternative to the links at the bottom of the card. DataContext is the card's entry. -->
+                    <ContextMenu Style="{StaticResource ThemedContextMenu}">
+                        <MenuItem Header="Copy this entry"
+                                  Command="{Binding PlacementTarget.Tag.CopyEntryCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}"/>
+                        <MenuItem Header="Open dump folder" Visibility="{Binding DumpPath, Converter={StaticResource NullToCollapsed}}"
+                                  Command="{Binding PlacementTarget.Tag.OpenDumpCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}"/>
+                        <MenuItem Header="Debug in WinDbg" Visibility="{Binding DumpExists, Converter={StaticResource BoolToVis}}"
+                                  Command="{Binding PlacementTarget.Tag.OpenInWinDbgCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}"/>
+                        <MenuItem Header="{Binding PlacementTarget.Tag.SearchEngineLabel, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                  Visibility="{Binding HasSearchQuery, Converter={StaticResource BoolToVis}}"
+                                  Command="{Binding PlacementTarget.Tag.SearchWebCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}"/>
+                        <MenuItem Header="Ask AI" Visibility="{Binding DumpExists, Converter={StaticResource BoolToVis}}"
+                                  Command="{Binding PlacementTarget.Tag.AskAiCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}" CommandParameter="{Binding}"/>
+                    </ContextMenu>
+                </Border.ContextMenu>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="6"/>
@@ -194,6 +212,11 @@
                                     <Button Content="Debug in WinDbg" Style="{StaticResource LinkButton}" ToolTip="Open the crash dump in WinDbg and run !analyze -v"
                                             Visibility="{Binding DumpExists, Converter={StaticResource BoolToVis}}"
                                             Command="{Binding DataContext.OpenInWinDbgCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                                    <!-- Web search for the bugcheck name, code and any driver names on the card; the engine is chosen in Settings -->
+                                    <Button Content="{Binding DataContext.SearchEngineLabel, RelativeSource={RelativeSource AncestorType=Window}}" Style="{StaticResource LinkButton}"
+                                            ToolTip="{Binding SearchQuery}"
+                                            Visibility="{Binding HasSearchQuery, Converter={StaticResource BoolToVis}}"
+                                            Command="{Binding DataContext.SearchWebCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
                                     <!-- Runs !analyze -v through WinDbg, then opens the chosen chat service with the output and this card as the prompt -->
                                     <Button Content="Ask AI" Style="{StaticResource LinkButton}" ToolTip="Analyse the dump with WinDbg and ask a chat assistant what it means (service chosen in Settings)"
                                             Visibility="{Binding DumpExists, Converter={StaticResource BoolToVis}}"
@@ -385,8 +408,8 @@
             </ScrollViewer>
 
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}">
-                <ProgressBar IsIndeterminate="True" Width="240" Height="6" BorderThickness="0" Background="{DynamicResource ControlPressed}" Foreground="{DynamicResource Accent}"/>
-                <TextBlock Text="Reading the Windows event log…" Foreground="{DynamicResource TextMuted}" Margin="0,10,0,0" HorizontalAlignment="Center"/>
+                <local:Spinner HorizontalAlignment="Center"/>
+                <TextBlock Text="Reading the Windows event log…" Foreground="{DynamicResource TextMuted}" Margin="0,14,0,0" HorizontalAlignment="Center"/>
             </StackPanel>
 
             <!-- Busy overlay while WinDbg analyses a dump for Ask AI: a spinning ring, the status text and a Cancel link -->
@@ -394,21 +417,7 @@
                 <Border Background="{DynamicResource SurfaceBg}" BorderBrush="{DynamicResource SurfaceBorder}" BorderThickness="1" CornerRadius="10"
                         Padding="28,24" MaxWidth="460" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <StackPanel>
-                        <Ellipse Width="44" Height="44" StrokeThickness="5" Stroke="{DynamicResource Accent}" StrokeDashArray="9 4.6" StrokeDashCap="Round"
-                                 RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Center">
-                            <Ellipse.RenderTransform>
-                                <RotateTransform x:Name="SpinnerRotate"/>
-                            </Ellipse.RenderTransform>
-                            <Ellipse.Triggers>
-                                <EventTrigger RoutedEvent="Loaded">
-                                    <BeginStoryboard>
-                                        <Storyboard RepeatBehavior="Forever">
-                                            <DoubleAnimation Storyboard.TargetName="SpinnerRotate" Storyboard.TargetProperty="Angle" From="0" To="360" Duration="0:0:1.2"/>
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </EventTrigger>
-                            </Ellipse.Triggers>
-                        </Ellipse>
+                        <local:Spinner HorizontalAlignment="Center"/>
                         <TextBlock Text="Ask AI" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" Margin="0,14,0,4"/>
                         <TextBlock Text="{Binding BusyText}" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" TextAlignment="Center"/>
                         <Button Content="Cancel" Style="{StaticResource LinkButton}" HorizontalAlignment="Center" Margin="0,14,0,0" Command="{Binding CancelAskAiCommand}"/>
