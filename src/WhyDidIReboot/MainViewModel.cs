@@ -422,8 +422,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public string CurrentSessionText { get => _currentSessionText; private set { _currentSessionText = value; OnPropertyChanged(); } }
     public string WarningText { get => _warningText; private set { _warningText = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasWarning)); } }
     public bool HasWarning => _warningText.Length > 0;
-    public int ShownCount { get => _shownCount; private set { _shownCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(ShowEmpty)); } }
+    public int ShownCount { get => _shownCount; private set { _shownCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(ShowEmpty)); OnPropertyChanged(nameof(ShownText)); } }
     public bool ShowEmpty => !IsBusy && ShownCount == 0;
+
+    /// <summary>"1 of 24 shown": cards passing the filters out of all cards loaded for the range.</summary>
+    public string ShownText => $"{ShownCount} of {_entries.Count} shown";
+
+    /// <summary>"v0.7.0", for the status bar.</summary>
+    public string VersionTag => "v" + VersionString;
 
     public async Task RefreshAsync()
     {

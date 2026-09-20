@@ -305,8 +305,10 @@
                 </StackPanel>
             </StackPanel>
 
-            <!-- Search: icon and text box share one bordered container so they sit on the same baseline. -->
-            <Border Grid.Column="1" VerticalAlignment="Top" Margin="12,0,0,0" Width="250" Height="30" CornerRadius="6"
+            <!-- Search: icon and text box share one bordered container so they sit on the same baseline;
+                 the "N of M shown" counter sits underneath, level with the Show: presets. -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Top" Margin="12,0,0,0">
+            <Border Width="250" Height="30" CornerRadius="6"
                     Background="{DynamicResource ControlBg}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -353,6 +355,8 @@
                     </Grid>
                 </Grid>
             </Border>
+            <TextBlock Text="{Binding ShownText, Mode=OneWay}" Foreground="{DynamicResource TextMuted}" FontSize="12" HorizontalAlignment="Right" Margin="0,10,2,0"/>
+            </StackPanel>
         </Grid>
 
         <!-- Timeline -->
@@ -387,9 +391,7 @@
         <Border Grid.Row="4" Background="{DynamicResource SurfaceBg}" BorderBrush="{DynamicResource SurfaceBorder}" BorderThickness="0,1,0,0" Padding="24,6">
             <Grid>
                 <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource TextMuted}" FontSize="12"/>
-                <TextBlock Foreground="{DynamicResource TextMuted}" FontSize="12" HorizontalAlignment="Right">
-                    <Run Text="{Binding ShownCount, Mode=OneWay}"/><Run Text=" shown"/>
-                </TextBlock>
+                <TextBlock Text="{Binding VersionTag, Mode=OneWay}" Foreground="{DynamicResource TextMuted}" FontSize="12" HorizontalAlignment="Right"/>
             </Grid>
         </Border>
     </Grid>
