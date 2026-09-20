@@ -8,6 +8,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-20
+
 ### Added
 - xUnit test project (`tests/WhyDidIReboot.Tests`) covering the analyzer's categorisation, timings and evidence over synthetic event records, plus the exporters, bugcheck catalog and formatting helpers. CI runs it on every push and publishes the results.
 
@@ -36,6 +38,7 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - Export to text or CSV, copy a single entry, open Event Viewer, and jump to a crash dump in Explorer.
 - Headless `--export` mode for scripts.
 
-[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/WelFedTed/why-did-i-reboot/releases/tag/v0.1.0
