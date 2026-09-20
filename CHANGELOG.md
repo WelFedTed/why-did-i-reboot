@@ -8,6 +8,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-20
+
 ### Added
 - **Debug in WinDbg** link on crash cards whose dump file is on disk. It opens the dump in WinDbg with `!analyze -v` queued. If WinDbg is not installed, the app offers to install it with winget (`Microsoft.WinDbg`) in a visible console window and opens the dump when that finishes; without winget it opens the Microsoft Store page.
 - **Custom range…** in the period drop-down: pick a from/to date (with this month / last month / this year shortcuts). The chosen window appears as its own entry above *Custom range…*. Headless: `--from yyyy-MM-dd --to yyyy-MM-dd`.
@@ -105,7 +107,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - Export to text or CSV, copy a single entry, open Event Viewer, and jump to a crash dump in Explorer.
 - Headless `--export` mode for scripts.
 
-[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.5.0...v0.6.0
