@@ -8,6 +8,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-20
+
 ### Added
 - **Interactive HTML report.** The export now has the same category chips (click to show or hide), the *default / everything / reboots only / problems only / none* presets, and a search box with a clear button, all working offline inside the file. Every search word must appear somewhere on a card; matches are highlighted and a collapsed block opens when a match is inside it. Opening the file with `?q=words` starts with that search.
 
@@ -90,7 +92,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - Export to text or CSV, copy a single entry, open Event Viewer, and jump to a crash dump in Explorer.
 - Headless `--export` mode for scripts.
 
-[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.4.0...v0.5.0
