@@ -8,6 +8,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-20
+
 ### Added
 - **Settings** dialog, opened from a cog button at the right of the header. It holds the theme picker (moved out of the header), a **Check for updates** button that compares the running version with the latest GitHub Release and links to the download page, and the version number with a link to the repository at the bottom.
 
@@ -44,7 +46,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - Export to text or CSV, copy a single entry, open Event Viewer, and jump to a crash dump in Explorer.
 - Headless `--export` mode for scripts.
 
-[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/WelFedTed/why-did-i-reboot/releases/tag/v0.1.0
