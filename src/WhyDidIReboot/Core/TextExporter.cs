@@ -102,6 +102,7 @@ h1{font-size:26px;font-weight:600;margin:0 0 4px}
 .chip.off b{background:var(--border);color:var(--muted)}
 .search{position:relative;flex:none}
 .search input{width:270px;padding:6px 30px 6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);font:inherit;font-size:13px}
+.search input::-webkit-search-cancel-button,.search input::-webkit-search-decoration{-webkit-appearance:none;appearance:none;display:none}
 .search button{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 6px}
 .presets{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted);margin:0 0 18px}
 .presets a{color:var(--link);text-decoration:none}

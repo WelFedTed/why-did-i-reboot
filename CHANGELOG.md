@@ -12,6 +12,7 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - **Interactive HTML report.** The export now has the same category chips (click to show or hide), the *default / everything / reboots only / problems only / none* presets, and a search box with a clear button, all working offline inside the file. Every search word must appear somewhere on a card; matches are highlighted and a collapsed block opens when a match is inside it. Opening the file with `?q=words` starts with that search.
 
 ### Fixed
+- The HTML report's search box showed two clear buttons in Chromium-based browsers (the browser's own and the page's); the native one is now hidden.
 - The HTML report's *Installed updates* list is collapsed behind a down arrow like the app.
 - Monthly Windows updates named "2026-06 Security Update (KB…)" are grouped under *Windows* even when Windows Update history has no classification for them.
 
