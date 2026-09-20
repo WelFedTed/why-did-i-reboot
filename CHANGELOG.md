@@ -8,6 +8,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-20
+
 ### Added
 - **Ask AI** link beside *Debug in WinDbg* on crash cards. It has WinDbg run `!analyze -v` on the dump into a log file, keeps the parts that matter (probable cause, module and image names, bucket id, bugcheck parameters, the top of the stack), combines them with the card's "Copy this entry" text into a prompt, copies the prompt to the clipboard, and opens a chat service with the prompt prefilled: ChatGPT (default, no sign-in needed), Microsoft Copilot, Perplexity or Claude, chosen in Settings. If the address would be too long the analysis part is shortened and the full prompt is left on the clipboard. WinDbg is installed through winget first if needed.
 
@@ -118,7 +120,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - Export to text or CSV, copy a single entry, open Event Viewer, and jump to a crash dump in Explorer.
 - Headless `--export` mode for scripts.
 
-[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.6.0...v0.6.1
