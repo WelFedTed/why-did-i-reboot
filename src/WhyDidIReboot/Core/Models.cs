@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace WhyDidIReboot.Core;
 
 /// <summary>What kind of thing ended (or interrupted) a session.</summary>
@@ -46,6 +48,80 @@ public sealed class RawEvent
 /// <summary>A log record shown to the user as evidence for an entry.</summary>
 public sealed record EvidenceEvent(DateTime Time, string Log, int Id, string Provider, string Message);
 
+/// <summary>A clickable reference shown on a card, e.g. the Microsoft Learn page for a STOP code.</summary>
+public sealed record LinkItem(string Label, string Url);
+
+/// <summary>An update installed shortly before a reboot, enriched from Windows Update history when available.</summary>
+public sealed record UpdateItem(string Title, string? Kb, string? Description, string? Category, string? Url, bool Failed)
+{
+    /// <summary>"KB5094126 on Microsoft Support", or just "Microsoft Support" when no KB number is known.</summary>
+    public string LinkLabel => Kb is null ? "Microsoft Support" : $"{Kb} on Microsoft Support";
+}
+
+/// <summary>What Windows Update history knows about an update, keyed by KB number.</summary>
+public sealed record UpdateDetails(string Title, string? Description, string? Category, string? SupportUrl, DateTime? InstalledOn);
+
+/// <summary>Where the event logs come from: this PC, or .evtx files from another Windows installation.</summary>
+public sealed record LogLocation(string SystemPath, string? ApplicationPath, string? Root, string Display, bool IsOffline)
+{
+    public static readonly LogLocation Local = new("System", "Application", null, "this PC", false);
+
+    /// <summary>
+    /// Accepts a drive root (D:\), a Windows folder (D:\Windows), the winevt\Logs folder, or a System.evtx file,
+    /// and finds the System and Application logs. <paramref name="fileExists"/> is injectable for tests.
+    /// </summary>
+    public static LogLocation? Resolve(string path, Func<string, bool>? fileExists = null)
+    {
+        fileExists ??= File.Exists;
+        if (string.IsNullOrWhiteSpace(path)) return null;
+        var p = path.Trim().TrimEnd('\\', '/');
+        if (p.Length == 2 && p[1] == ':') p += '\\';   // "D:" → "D:\"
+
+        var candidates = new List<string>();
+        if (p.EndsWith(".evtx", StringComparison.OrdinalIgnoreCase)) candidates.Add(p);
+        else
+        {
+            candidates.Add(Path.Combine(p, "System.evtx"));
+            candidates.Add(Path.Combine(p, "System32", "winevt", "Logs", "System.evtx"));
+            candidates.Add(Path.Combine(p, "Windows", "System32", "winevt", "Logs", "System.evtx"));
+        }
+
+        var system = candidates.FirstOrDefault(fileExists);
+        if (system is null) return null;
+
+        var logsDir = Path.GetDirectoryName(system) ?? "";
+        var app = Path.Combine(logsDir, "Application.evtx");
+        var appPath = fileExists(app) ? app : null;
+
+        // D:\Windows\System32\winevt\Logs → D:\  (used to remap C:\Windows\Minidump\... paths)
+        string? root = null;
+        var marker = logsDir.IndexOf(@"\Windows\System32\winevt\Logs", StringComparison.OrdinalIgnoreCase);
+        if (marker > 0) root = logsDir[..marker] + "\\";
+
+        return new LogLocation(system, appPath, root, root ?? logsDir, true);
+    }
+
+    /// <summary>Maps a path recorded on the original machine (C:\Windows\...) onto the offline drive.</summary>
+    public string MapPath(string path)
+    {
+        if (!IsOffline || Root is null || path.Length < 3 || path[1] != ':') return path;
+        return Path.Combine(Root, path[3..]);
+    }
+}
+
+/// <summary>Extra inputs to the analysis that are not event records.</summary>
+public sealed class AnalysisOptions
+{
+    public static readonly AnalysisOptions Default = new();
+
+    /// <summary>Rewrites paths found in the log (dump files) before checking whether they exist.</summary>
+    public Func<string, string> MapPath { get; init; } = p => p;
+
+    /// <summary>Windows Update history keyed by KB number ("KB5094126"), used to describe updates on cards.</summary>
+    public IReadOnlyDictionary<string, UpdateDetails> UpdateDetails { get; init; } =
+        new Dictionary<string, UpdateDetails>(StringComparer.OrdinalIgnoreCase);
+}
+
 /// <summary>One line in the human readable timeline.</summary>
 public sealed class RebootEntry
 {
@@ -62,6 +138,11 @@ public sealed class RebootEntry
 
     public List<KeyValuePair<string, string>> Details { get; init; } = new();
     public List<EvidenceEvent> Evidence { get; init; } = new();
+    public List<LinkItem> Links { get; init; } = new();
+    public List<UpdateItem> Updates { get; init; } = new();
+
+    public bool HasLinks => Links.Count > 0;
+    public bool HasUpdates => Updates.Count > 0;
 
     /// <summary>True when this entry represents the machine actually going down and coming back.</summary>
     public bool IsReboot => Category is not (RebootCategory.LiveKernelEvent or RebootCategory.Sleep);
@@ -74,6 +155,8 @@ public sealed class AnalysisResult
     public List<RebootEntry> Entries { get; init; } = new();
     public int RecordsRead { get; init; }
     public TimeSpan Elapsed { get; init; }
+    /// <summary>This PC's boot time, or for offline logs the last boot recorded in them.</summary>
     public DateTime CurrentBootTime { get; init; }
+    public LogLocation Source { get; init; } = LogLocation.Local;
     public List<string> Warnings { get; init; } = new();
 }

@@ -213,6 +213,36 @@
                 </Setter>
             </Style>
 
+            <!-- ============================================================ CheckBox -->
+            <Style x:Key="ThemedCheckBox" TargetType="CheckBox">
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="CheckBox">
+                            <StackPanel Orientation="Horizontal" Background="Transparent">
+                                <Border x:Name="box" Width="18" Height="18" CornerRadius="4" BorderThickness="1" VerticalAlignment="Center"
+                                        Background="{DynamicResource ControlBg}" BorderBrush="{DynamicResource ControlBorder}">
+                                    <TextBlock x:Name="tick" Text="&#xE73E;" FontFamily="{StaticResource IconFont}" FontSize="11" Visibility="Collapsed"
+                                               Foreground="{DynamicResource AccentText}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center" TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                            </StackPanel>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="box" Property="Background" Value="{DynamicResource Accent}"/>
+                                    <Setter TargetName="box" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                                    <Setter TargetName="tick" Property="Visibility" Value="Visible"/>
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="box" Property="BorderBrush" Value="{DynamicResource AccentHover}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <!-- ============================================================ TextBox -->
             <Style x:Key="ThemedTextBox" TargetType="TextBox">
                 <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>

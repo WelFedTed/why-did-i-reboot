@@ -189,7 +189,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private bool _hasUpdate;
     private bool _isCheckingUpdates;
 
-    public string VersionText => $"Why Did I Reboot {VersionString}";
+    public string VersionText => $"Why Did I Reboot v{VersionString}";
     public string UpdateStatus { get => _updateStatus; private set { _updateStatus = value; OnPropertyChanged(); } }
     public string? UpdateUrl { get => _updateUrl; private set { _updateUrl = value; OnPropertyChanged(); } }
     public bool HasUpdate { get => _hasUpdate; private set { _hasUpdate = value; OnPropertyChanged(); } }
@@ -206,13 +206,34 @@ public sealed class MainViewModel : INotifyPropertyChanged
     });
     private RelayCommand? _openUrl;
 
-    public async Task CheckForUpdatesAsync()
+    private bool _showUpdateBanner;
+
+    /// <summary>Shown in the main window after a startup check finds a newer release; dismissible.</summary>
+    public bool ShowUpdateBanner { get => _showUpdateBanner; set { _showUpdateBanner = value; OnPropertyChanged(); } }
+
+    public bool CheckUpdatesOnStartup
+    {
+        get => AppSettings.Current.CheckUpdatesOnStartup;
+        set
+        {
+            if (AppSettings.Current.CheckUpdatesOnStartup == value) return;
+            AppSettings.Current.CheckUpdatesOnStartup = value;
+            AppSettings.Current.Save();
+            OnPropertyChanged();
+        }
+    }
+
+    public ICommand DismissUpdateCommand => _dismissUpdate ??= new RelayCommand(_ => ShowUpdateBanner = false);
+    private RelayCommand? _dismissUpdate;
+
+    /// <param name="silent">Startup check: only surface a result when a newer release exists.</param>
+    public async Task CheckForUpdatesAsync(bool silent = false)
     {
         if (IsCheckingUpdates) return;
         IsCheckingUpdates = true;
         HasUpdate = false;
         UpdateUrl = null;
-        UpdateStatus = "Checking GitHub for the latest release…";
+        if (!silent) UpdateStatus = "Checking GitHub for the latest release…";
         try
         {
             var info = await UpdateChecker.CheckAsync(Http.Value, CurrentVersion);
@@ -220,16 +241,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
             {
                 UpdateUrl = info.Url;
                 HasUpdate = true;
-                UpdateStatus = $"Version {info.Latest} is available. You have {VersionString}.";
+                UpdateStatus = $"v{info.Latest} is available. You have v{VersionString}.";
+                if (silent) ShowUpdateBanner = true;
             }
             else
             {
-                UpdateStatus = $"You have the latest version ({VersionString}).";
+                UpdateStatus = $"You have the latest version (v{VersionString}).";
             }
         }
         catch (Exception ex)
         {
-            UpdateStatus = "Could not check for updates: " + (ex.InnerException?.Message ?? ex.Message);
+            if (!silent) UpdateStatus = "Could not check for updates: " + (ex.InnerException?.Message ?? ex.Message);
         }
         finally
         {
@@ -237,6 +259,29 @@ public sealed class MainViewModel : INotifyPropertyChanged
             CommandManager.InvalidateRequerySuggested();   // re-enable the button without waiting for input
         }
     }
+
+    // ---------------------------------------------------------------- log source
+
+    private LogLocation _location = LogLocation.Local;
+
+    public LogLocation Location { get => _location; private set { _location = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsOffline)); OnPropertyChanged(nameof(WindowTitle)); } }
+    public bool IsOffline => _location.IsOffline;
+    public string WindowTitle => IsOffline ? $"Why Did I Reboot — {_location.Display}" : "Why Did I Reboot";
+
+    /// <summary>Switches to another Windows installation's logs and re-reads. Returns false if none were found there.</summary>
+    public async Task<bool> LoadOfflineAsync(string folder)
+    {
+        var resolved = LogLocation.Resolve(folder);
+        if (resolved is null) return false;
+        AppSettings.Current.LastOfflineFolder = folder;
+        AppSettings.Current.Save();
+        Location = resolved;
+        await RefreshAsync();
+        return true;
+    }
+
+    public ICommand BackToThisPcCommand => _backToThisPc ??= new RelayCommand(async _ => { Location = LogLocation.Local; await RefreshAsync(); }, _ => IsOffline);
+    private RelayCommand? _backToThisPc;
 
     // ---------------------------------------------------------------- bindings
 
@@ -288,16 +333,26 @@ public sealed class MainViewModel : INotifyPropertyChanged
         IsBusy = true;
         StatusText = "Reading the Windows event logs…";
         var days = _range.Days;
+        var location = _location;
         try
         {
-            var result = await Task.Run(() => RebootAnalyzer.Analyze(days));
+            var result = await Task.Run(() => RebootAnalyzer.Analyze(days, location));
             _last = result;
             _entries.Clear();
             foreach (var e in result.Entries) _entries.Add(e);
             foreach (var c in Categories) c.Count = result.Entries.Count(e => e.Category == c.Category);
 
-            var uptime = DateTime.Now - result.CurrentBootTime;
-            CurrentSessionText = $"This PC has been running since {Format.When(result.CurrentBootTime)} ({Format.Duration(uptime)} ago).";
+            if (location.IsOffline)
+            {
+                CurrentSessionText = result.CurrentBootTime == DateTime.MinValue
+                    ? $"Showing logs from {location.Display} (another Windows installation). No boots recorded in this range."
+                    : $"Showing logs from {location.Display} (another Windows installation). Last recorded boot: {Format.When(result.CurrentBootTime)}.";
+            }
+            else
+            {
+                var uptime = DateTime.Now - result.CurrentBootTime;
+                CurrentSessionText = $"This PC has been running since {Format.When(result.CurrentBootTime)} ({Format.Duration(uptime)} ago).";
+            }
             WarningText = string.Join("  ", result.Warnings);
             var reboots = result.Entries.Count(e => e.IsReboot);
             StatusText = $"{reboots} boots found · {result.RecordsRead:N0} log records read in {result.Elapsed.TotalMilliseconds:N0} ms";
@@ -386,6 +441,14 @@ public sealed class NullToCollapsedConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
         value is null || value is string { Length: 0 } ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotSupportedException();
+}
+
+/// <summary>Appends an external-link arrow to a label, for link buttons whose Content is a plain string.</summary>
+public sealed class ExternalLinkConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
+        value is string s && s.Length > 0 ? s + " ↗" : "";
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotSupportedException();
 }
 

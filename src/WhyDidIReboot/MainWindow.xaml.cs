@@ -17,21 +17,51 @@ public partial class MainWindow : Window
         DataContext = _vm;
         // The caption bar can only be recoloured once the native window exists.
         SourceInitialized += (_, _) => ThemeManager.ApplyTitleBar(this);
-        Loaded += async (_, _) => await _vm.RefreshAsync();
+        Loaded += async (_, _) =>
+        {
+            await _vm.RefreshAsync();
+            if (AppSettings.Current.CheckUpdatesOnStartup)
+                await _vm.CheckForUpdatesAsync(silent: true);
+        };
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.F5) { _ = _vm.RefreshAsync(); e.Handled = true; }
+            if (e.Key == Key.F9) { BrowseOfflineLogs(); e.Handled = true; }
             if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { SearchBox.Focus(); SearchBox.SelectAll(); e.Handled = true; }
         };
+    }
+
+    /// <summary>Lets the user pick another Windows installation (drive root, Windows folder or winevt\Logs) and loads its logs.</summary>
+    public async void BrowseOfflineLogs()
+    {
+        var dialog = new OpenFolderDialog
+        {
+            Title = "Choose a drive, a Windows folder, or a winevt\\Logs folder from another Windows installation",
+            Multiselect = false,
+        };
+        var last = AppSettings.Current.LastOfflineFolder;
+        if (!string.IsNullOrEmpty(last) && Directory.Exists(last)) dialog.InitialDirectory = last;
+
+        if (dialog.ShowDialog(this) != true) return;
+
+        var ok = await _vm.LoadOfflineAsync(dialog.FolderName);
+        if (!ok)
+        {
+            MessageBox.Show(this,
+                $"No System.evtx was found under:\n{dialog.FolderName}\n\n" +
+                "Pick the drive root (for example D:\\), its Windows folder, or Windows\\System32\\winevt\\Logs.",
+                "Event logs not found", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
     }
 
     private void Export_Click(object sender, RoutedEventArgs e)
     {
         if (_vm.LastResult is null) return;
+        var subject = _vm.IsOffline ? "offline" : Environment.MachineName;
         var dialog = new SaveFileDialog
         {
             Title = "Export reboot history",
-            FileName = $"why-did-i-reboot-{Environment.MachineName}-{DateTime.Now:yyyyMMdd-HHmm}",
+            FileName = $"why-did-i-reboot-{subject}-{DateTime.Now:yyyyMMdd-HHmm}",
             Filter = "HTML report (*.html)|*.html|Text report (*.txt)|*.txt|CSV spreadsheet (*.csv)|*.csv",
             DefaultExt = ".html",
         };
@@ -58,6 +88,7 @@ public partial class MainWindow : Window
     {
         var dialog = new SettingsWindow(_vm) { Owner = this };
         dialog.ShowDialog();
+        if (dialog.BrowseRequested) BrowseOfflineLogs();
     }
 
     private void EventViewer_Click(object sender, RoutedEventArgs e)

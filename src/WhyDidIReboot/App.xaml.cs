@@ -23,9 +23,26 @@ public partial class App : Application
 
             var includeSleep = args.Any(a => a.Equals("--sleep", StringComparison.OrdinalIgnoreCase));
             var path = args[exportIndex + 1];
+
+            // --source <folder|System.evtx>: analyse another Windows installation's logs instead of this PC's.
+            var location = LogLocation.Local;
+            var sourceIndex = Array.FindIndex(args, a => a.Equals("--source", StringComparison.OrdinalIgnoreCase));
+            if (sourceIndex >= 0 && sourceIndex + 1 < args.Length)
+            {
+                var resolved = LogLocation.Resolve(args[sourceIndex + 1]);
+                if (resolved is null)
+                {
+                    File.WriteAllText(path, $"ERROR: no System.evtx found under '{args[sourceIndex + 1]}'.");
+                    Environment.ExitCode = 2;
+                    Shutdown();
+                    return;
+                }
+                location = resolved;
+            }
+
             try
             {
-                var result = RebootAnalyzer.Analyze(days);
+                var result = RebootAnalyzer.Analyze(days, location);
                 var entries = result.Entries.Where(x => includeSleep || x.Category != RebootCategory.Sleep);
                 var label = days is int dd ? $"last {dd} days" : "everything";
                 var text = path.EndsWith(".csv", StringComparison.OrdinalIgnoreCase) ? TextExporter.ToCsv(entries)

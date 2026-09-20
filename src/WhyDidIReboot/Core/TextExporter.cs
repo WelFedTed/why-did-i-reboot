@@ -8,9 +8,11 @@ public static class TextExporter
     public static string ToText(AnalysisResult result, IEnumerable<RebootEntry> entries, string rangeLabel)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"Why Did I Reboot — report for {Environment.MachineName}");
+        sb.AppendLine($"Why Did I Reboot — report for {(result.Source.IsOffline ? "logs at " + result.Source.Display : Environment.MachineName)}");
         sb.AppendLine($"Generated {Format.When(DateTime.Now)} · Range: {rangeLabel} · Log records read: {result.RecordsRead}");
-        sb.AppendLine($"Current session: up since {Format.When(result.CurrentBootTime)} ({Format.Duration(DateTime.Now - result.CurrentBootTime)})");
+        sb.AppendLine(result.Source.IsOffline
+            ? $"Offline logs from another Windows installation. Last recorded boot: {Format.When(result.CurrentBootTime)}"
+            : $"Current session: up since {Format.When(result.CurrentBootTime)} ({Format.Duration(DateTime.Now - result.CurrentBootTime)})");
         foreach (var w in result.Warnings) sb.AppendLine($"Warning: {w}");
         sb.AppendLine();
 
@@ -28,7 +30,18 @@ public static class TextExporter
         sb.AppendLine($"[{e.Timestamp:yyyy-MM-dd HH:mm:ss}]  {e.Title.ToUpperInvariant()}");
         sb.AppendLine($"    Category: {Format.Category(e.Category)}");
         sb.AppendLine($"    {e.Summary}");
+        if (e.Updates.Count > 0)
+        {
+            sb.AppendLine("    Updates installed shortly before:");
+            foreach (var u in e.Updates)
+            {
+                sb.AppendLine($"      - {u.Title}{(u.Failed ? " (FAILED)" : "")}");
+                if (u.Description is not null) sb.AppendLine($"        {u.Description}");
+                if (u.Url is not null) sb.AppendLine($"        {u.Url}");
+            }
+        }
         foreach (var d in e.Details) sb.AppendLine($"    {d.Key}: {d.Value}");
+        foreach (var l in e.Links) sb.AppendLine($"    {l.Label}: {l.Url}");
         if (e.Evidence.Count > 0)
         {
             sb.AppendLine("    Log records:");
@@ -90,6 +103,14 @@ h2.day{font-size:13px;font-weight:600;color:var(--muted);margin:26px 0 10px}
 .when{font-size:12px;color:var(--muted);margin-top:2px}
 .badge{margin-left:auto;flex:none;font-size:11px;font-weight:600;padding:3px 8px;border-radius:10px;background:color-mix(in srgb,var(--col) 14%,transparent);color:var(--col)}
 .summary{color:var(--text2);margin:10px 0 0 48px}
+.updates{margin:8px 0 0 48px;padding-left:18px;font-size:13px}
+.updates li{margin:4px 0}
+.updates .desc{color:var(--text2);font-size:12.5px}
+.updates .cat{color:var(--muted);font-size:11px;margin-left:6px}
+.updates .fail{color:#dc2626;font-weight:600;font-size:11px;margin-left:6px}
+.updates a,.links a{color:var(--link);text-decoration:none;font-size:12px;margin-right:14px}
+.updates a:hover,.links a:hover{text-decoration:underline}
+.links{margin:8px 0 0 48px}
 details{margin:8px 0 0 48px;font-size:12.5px}
 summary{cursor:pointer;color:var(--link);user-select:none}
 table.kv{border-collapse:collapse;margin-top:8px}
@@ -104,8 +125,12 @@ table.kv{border-collapse:collapse;margin-top:8px}
 ");
         sb.Append("</style>\n</head>\n<body>\n<div class=\"wrap\">\n");
         sb.Append("<h1>Why Did I Reboot</h1>\n");
-        sb.Append($"<p class=\"sub\">Report for <b>{machine}</b> · generated {H(Format.When(DateTime.Now))} · range: {H(rangeLabel)} · {result.RecordsRead:N0} log records read</p>\n");
-        sb.Append($"<div class=\"banner\">This PC has been running since {H(Format.When(result.CurrentBootTime))} ({H(Format.Duration(DateTime.Now - result.CurrentBootTime))} ago).");
+        var subject = result.Source.IsOffline ? "logs at " + H(result.Source.Display) : machine;
+        sb.Append($"<p class=\"sub\">Report for <b>{subject}</b> · generated {H(Format.When(DateTime.Now))} · range: {H(rangeLabel)} · {result.RecordsRead:N0} log records read</p>\n");
+        sb.Append("<div class=\"banner\">");
+        sb.Append(result.Source.IsOffline
+            ? $"Offline logs from another Windows installation. Last recorded boot: {H(Format.When(result.CurrentBootTime))}."
+            : $"This PC has been running since {H(Format.When(result.CurrentBootTime))} ({H(Format.Duration(DateTime.Now - result.CurrentBootTime))} ago).");
         foreach (var w in result.Warnings) sb.Append($"<div class=\"warn\">{H(w)}</div>");
         sb.Append("</div>\n");
 
@@ -138,6 +163,26 @@ table.kv{border-collapse:collapse;margin-top:8px}
             sb.Append($"<div class=\"title\">{H(e.Title)}</div><div class=\"when\">{H(string.Join("  ·  ", when))}</div></div>");
             sb.Append($"<span class=\"badge\">{H(Format.Category(e.Category))}</span></div>\n");
             sb.Append($"<div class=\"summary\">{H(e.Summary)}</div>\n");
+            if (e.Updates.Count > 0)
+            {
+                sb.Append("<ul class=\"updates\">");
+                foreach (var u in e.Updates)
+                {
+                    sb.Append("<li><b>").Append(H(u.Title)).Append("</b>");
+                    if (u.Failed) sb.Append(" <span class=\"fail\">failed</span>");
+                    if (u.Category is not null) sb.Append($" <span class=\"cat\">{H(u.Category)}</span>");
+                    if (u.Description is not null) sb.Append($"<div class=\"desc\">{H(u.Description)}</div>");
+                    if (u.Url is not null) sb.Append($"<a href=\"{H(u.Url)}\" target=\"_blank\" rel=\"noopener\">{H(u.Kb ?? "Microsoft Support")} ↗</a>");
+                    sb.Append("</li>");
+                }
+                sb.Append("</ul>\n");
+            }
+            if (e.Links.Count > 0)
+            {
+                sb.Append("<div class=\"links\">");
+                foreach (var l in e.Links) sb.Append($"<a href=\"{H(l.Url)}\" target=\"_blank\" rel=\"noopener\">{H(l.Label)} ↗</a>");
+                sb.Append("</div>\n");
+            }
             sb.Append("<details><summary>Details and log records</summary>\n<table class=\"kv\">");
             foreach (var d in e.Details) sb.Append($"<tr><td>{H(d.Key)}</td><td>{H(d.Value)}</td></tr>");
             sb.Append("</table>\n");

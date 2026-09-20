@@ -1,6 +1,4 @@
-using System.IO;
 using System.Runtime.InteropServices;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Interop;
 using Microsoft.Win32;
@@ -12,9 +10,6 @@ public enum ThemeMode { System, Light, Dark }
 /// <summary>Swaps the light/dark resource dictionary, follows the Windows setting, and remembers the choice.</summary>
 public static class ThemeManager
 {
-    private static readonly string SettingsPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WhyDidIReboot", "settings.json");
-
     private static ResourceDictionary? _current;
     private static bool _initialized;
 
@@ -109,35 +104,12 @@ public static class ThemeManager
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
 
-    private sealed class Settings
-    {
-        public string? Theme { get; set; }
-    }
-
-    private static ThemeMode LoadSetting()
-    {
-        try
-        {
-            if (!File.Exists(SettingsPath)) return ThemeMode.System;
-            var s = JsonSerializer.Deserialize<Settings>(File.ReadAllText(SettingsPath));
-            return Enum.TryParse<ThemeMode>(s?.Theme, true, out var m) ? m : ThemeMode.System;
-        }
-        catch
-        {
-            return ThemeMode.System;
-        }
-    }
+    private static ThemeMode LoadSetting() =>
+        Enum.TryParse<ThemeMode>(AppSettings.Current.Theme, true, out var m) ? m : ThemeMode.System;
 
     private static void SaveSetting(ThemeMode mode)
     {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
-            File.WriteAllText(SettingsPath, JsonSerializer.Serialize(new Settings { Theme = mode.ToString() }));
-        }
-        catch
-        {
-            // Not fatal; the theme still applies for this session.
-        }
+        AppSettings.Current.Theme = mode.ToString();
+        AppSettings.Current.Save();
     }
 }

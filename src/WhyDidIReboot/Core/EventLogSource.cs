@@ -34,11 +34,16 @@ public static class EventLogSource
 
     private static readonly int[] SystemIds = { 1, 12, 13, 19, 20, 27, 41, 42, 109, 1001, 1074, 1076, 6005, 6006, 6008 };
 
-    /// <summary>Reads all relevant records, newest last. <paramref name="days"/> null means the whole log.</summary>
-    public static List<RawEvent> Read(int? days, List<string> warnings, out int recordsRead)
+    /// <summary>Reads all relevant records from this PC's logs, newest last. <paramref name="days"/> null means the whole log.</summary>
+    public static List<RawEvent> Read(int? days, List<string> warnings, out int recordsRead) =>
+        Read(LogLocation.Local, days, warnings, out recordsRead);
+
+    /// <summary>Reads from the live logs or from .evtx files of another Windows installation.</summary>
+    public static List<RawEvent> Read(LogLocation location, int? days, List<string> warnings, out int recordsRead)
     {
         var result = new List<RawEvent>();
         recordsRead = 0;
+        var pathType = location.IsOffline ? PathType.FilePath : PathType.LogName;
 
         var timeClause = days is int d
             ? $" and TimeCreated[timediff(@SystemTime) <= {(long)d * 86_400_000L}]"
@@ -46,23 +51,30 @@ public static class EventLogSource
 
         var idClause = string.Join(" or ", SystemIds.Select(i => $"EventID={i}"));
         var systemQuery = $"*[System[({idClause}){timeClause}]]";
-        recordsRead += ReadLog("System", systemQuery, result, warnings);
+        recordsRead += ReadLog(location.SystemPath, pathType, "System", systemQuery, result, warnings);
 
-        // WER 1001 in the Application log covers LiveKernelEvents (kernel trouble that did not reboot)
-        // and the report record for blue screens. Filter on EventName in the query itself to skip
-        // the thousands of ordinary application crash reports.
-        var werQuery =
-            $"*[System[Provider[@Name='{Wer}'] and EventID=1001{timeClause}]]" +
-            " and *[EventData[Data[@Name='EventName']='LiveKernelEvent' or Data[@Name='EventName']='BlueScreen']]";
-        try
+        if (location.ApplicationPath is null)
         {
-            recordsRead += ReadLog("Application", werQuery, result, warnings, throwOnQueryError: true);
+            warnings.Add("Application.evtx was not found next to System.evtx, so live kernel events are omitted.");
         }
-        catch (EventLogException)
+        else
         {
-            // Some builds reject EventData predicates; fall back to filtering in code.
-            var plain = $"*[System[Provider[@Name='{Wer}'] and EventID=1001{timeClause}]]";
-            recordsRead += ReadLog("Application", plain, result, warnings, werFilter: true);
+            // WER 1001 in the Application log covers LiveKernelEvents (kernel trouble that did not reboot)
+            // and the report record for blue screens. Filter on EventName in the query itself to skip
+            // the thousands of ordinary application crash reports.
+            var werQuery =
+                $"*[System[Provider[@Name='{Wer}'] and EventID=1001{timeClause}]]" +
+                " and *[EventData[Data[@Name='EventName']='LiveKernelEvent' or Data[@Name='EventName']='BlueScreen']]";
+            try
+            {
+                recordsRead += ReadLog(location.ApplicationPath, pathType, "Application", werQuery, result, warnings, throwOnQueryError: true);
+            }
+            catch (EventLogException)
+            {
+                // Some builds reject EventData predicates; fall back to filtering in code.
+                var plain = $"*[System[Provider[@Name='{Wer}'] and EventID=1001{timeClause}]]";
+                recordsRead += ReadLog(location.ApplicationPath, pathType, "Application", plain, result, warnings, werFilter: true);
+            }
         }
 
         result.Sort((a, b) =>
@@ -73,13 +85,13 @@ public static class EventLogSource
         return result;
     }
 
-    private static int ReadLog(string log, string xpath, List<RawEvent> sink, List<string> warnings,
+    private static int ReadLog(string path, PathType pathType, string log, string xpath, List<RawEvent> sink, List<string> warnings,
         bool throwOnQueryError = false, bool werFilter = false)
     {
         var read = 0;
         try
         {
-            var query = new EventLogQuery(log, PathType.LogName, xpath) { ReverseDirection = false };
+            var query = new EventLogQuery(path, pathType, xpath) { ReverseDirection = false };
             using var reader = new EventLogReader(query);
             while (true)
             {

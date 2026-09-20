@@ -8,6 +8,15 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+### Added
+- **Logs from another Windows installation.** Settings → *Open logs…* (or **F9**) picks a drive, a Windows folder or a `winevt\Logs` folder and reads its `System.evtx` and `Application.evtx` instead of this PC's logs. Crash dump paths are remapped onto that drive, the banner names the source, and a *Back to this PC* link returns to the live logs. Also `--source <folder>` for the headless export.
+- **Check for updates on startup**, with a toggle in Settings (on by default). A newer release shows as a dismissible banner in the main window.
+- **Microsoft Learn links** for STOP codes on blue screen and live kernel event cards.
+- **Update details on Windows Update cards**: each update installed shortly before the restart is listed with its short description and classification from Windows Update history, and a link to its Microsoft Support (KB) article.
+
+### Changed
+- Version shown in Settings now reads `v0.4.0` style.
+
 ## [0.4.0] - 2026-09-20
 
 ### Added

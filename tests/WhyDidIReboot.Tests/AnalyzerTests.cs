@@ -67,7 +67,9 @@ public class AnalyzerTests
         Assert.Contains("KB5099999", e.Summary);
         Assert.DoesNotContain("WindowsAppRuntime", e.Summary);
         Assert.DoesNotContain("KB5000000", e.Summary);
-        Assert.Single(e.Details, d => d.Key == "Update installed before shutdown");
+        var u = Assert.Single(e.Updates);
+        Assert.Equal("KB5099999", u.Kb);
+        Assert.Equal("https://support.microsoft.com/help/5099999", u.Url);
     }
 
     [Fact]

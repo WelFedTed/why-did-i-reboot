@@ -79,6 +79,19 @@ public static class BugcheckCatalog
 
     public static string Format(uint code) => $"0x{code:X8} {Name(code)}";
 
+    public const string ReferenceIndexUrl = "https://learn.microsoft.com/windows-hardware/drivers/debugger/bug-check-code-reference2";
+
+    /// <summary>
+    /// The Microsoft Learn page for a bug check, e.g. 0x9F → .../bug-check-0x9f--driver-power-state-failure.
+    /// Unknown codes go to the reference index.
+    /// </summary>
+    public static string Url(uint code)
+    {
+        if (!Codes.TryGetValue(code, out var e)) return ReferenceIndexUrl;
+        var slug = e.Name.ToLowerInvariant().Replace('_', '-');
+        return $"https://learn.microsoft.com/windows-hardware/drivers/debugger/bug-check-0x{code:x}--{slug}";
+    }
+
     /// <summary>Parses a decimal value ("159") as written by Kernel-Power 41.</summary>
     public static uint? ParseDecimal(string? text) =>
         uint.TryParse(text?.Trim(), out var v) ? v : null;

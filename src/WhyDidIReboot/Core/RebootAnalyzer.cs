@@ -28,24 +28,42 @@ public static class RebootAnalyzer
         "startmenuexperiencehost.exe", "consent.exe", "securityhealthsystray.exe",
     };
 
-    public static AnalysisResult Analyze(int? days)
+    public static AnalysisResult Analyze(int? days) => Analyze(days, LogLocation.Local);
+
+    /// <summary>Reads and analyses either this PC's logs or the .evtx files of another installation.</summary>
+    public static AnalysisResult Analyze(int? days, LogLocation location)
     {
         var sw = Stopwatch.StartNew();
         var warnings = new List<string>();
-        var events = EventLogSource.Read(days, warnings, out var read);
-        var entries = Build(events);
+        var events = EventLogSource.Read(location, days, warnings, out var read);
+
+        // Windows Update history describes updates installed on *this* PC; it says nothing about another drive.
+        var options = new AnalysisOptions
+        {
+            MapPath = location.MapPath,
+            UpdateDetails = location.IsOffline ? AnalysisOptions.Default.UpdateDetails : WindowsUpdateHistory.Load(warnings),
+        };
+        var entries = Build(events, options);
+
+        var bootTime = location.IsOffline
+            ? entries.Where(e => e.IsReboot && e.BootTime is not null).Select(e => e.BootTime!.Value).DefaultIfEmpty(DateTime.MinValue).Max()
+            : DateTime.Now - TimeSpan.FromMilliseconds(Environment.TickCount64);
+
         return new AnalysisResult
         {
             Entries = entries.OrderByDescending(e => e.Timestamp).ToList(),
             RecordsRead = read,
             Elapsed = sw.Elapsed,
-            CurrentBootTime = DateTime.Now - TimeSpan.FromMilliseconds(Environment.TickCount64),
+            CurrentBootTime = bootTime,
+            Source = location,
             Warnings = warnings,
         };
     }
 
     /// <summary>Pure function over an ascending list of events, so it can be exercised without a live log.</summary>
-    public static List<RebootEntry> Build(List<RawEvent> events)
+    public static List<RebootEntry> Build(List<RawEvent> events) => Build(events, AnalysisOptions.Default);
+
+    public static List<RebootEntry> Build(List<RawEvent> events, AnalysisOptions options)
     {
         var entries = new List<RebootEntry>();
 
@@ -67,18 +85,19 @@ public static class RebootAnalyzer
             var before = events.Where(e => e.Time < boot.Time && (prevBoot is null || e.Time >= prevBoot.Time)).ToList();
             var after = events.Where(e => e.Time >= boot.Time && e.Time < nextBootTime).ToList();
 
-            entries.Add(DescribeBoot(boot, prevBoot, before, after, events));
+            entries.Add(DescribeBoot(boot, prevBoot, before, after, events, options));
         }
 
-        entries.AddRange(LiveKernelEvents(events));
+        entries.AddRange(LiveKernelEvents(events, options));
         entries.AddRange(SleepCycles(events, boots));
         return entries;
     }
 
     // ---------------------------------------------------------------- reboots
 
-    private static RebootEntry DescribeBoot(RawEvent boot, RawEvent? prevBoot, List<RawEvent> before, List<RawEvent> after, List<RawEvent> all)
+    private static RebootEntry DescribeBoot(RawEvent boot, RawEvent? prevBoot, List<RawEvent> before, List<RawEvent> after, List<RawEvent> all, AnalysisOptions options)
     {
+        var links = new List<LinkItem>();
         var postLimit = boot.Time + PostBootWindow;
         var kp41 = after.FirstOrDefault(e => e.Is(EventLogSource.KernelPower, 41) && e.Time <= postLimit);
         var bugcheck = after.FirstOrDefault(e => (e.Is(EventLogSource.BugCheck, 1001) || e.Is(EventLogSource.BugCheckLegacy, 1001)) && e.Time <= postLimit);
@@ -122,6 +141,20 @@ public static class RebootAnalyzer
             .Where(u => !StoreAppUpdate.IsMatch(u.Title))
             .ToList();
 
+        // One card line per distinct update, described from Windows Update history when we have it.
+        var updateItems = updates
+            .GroupBy(u => u.Title, StringComparer.OrdinalIgnoreCase)
+            .Select(g =>
+            {
+                var u = g.First();
+                var kb = KnowledgeBase.KbNumber(u.Title);
+                options.UpdateDetails.TryGetValue(kb ?? "", out var info);
+                // The KB article is the most specific page. History's SupportUrl is often just a host or a generic fwlink.
+                var url = KnowledgeBase.Url(kb) ?? SpecificUrl(info?.SupportUrl);
+                return new UpdateItem(u.Title, kb, Shorten(info?.Description), info?.Category, url, g.Any(x => x.Failed));
+            })
+            .ToList();
+
         RebootCategory category;
         string title;
         string summary;
@@ -146,7 +179,8 @@ public static class RebootAnalyzer
                 var hint = BugcheckCatalog.Hint(code);
                 title = $"Crashed with a blue screen: {name}";
                 dumpPath = bugcheck?.Get("param2", 1);
-                var dumpExists = !string.IsNullOrWhiteSpace(dumpPath) && File.Exists(dumpPath);
+                var dumpExists = !string.IsNullOrWhiteSpace(dumpPath) && File.Exists(options.MapPath(dumpPath));
+                links.Add(new LinkItem($"STOP 0x{code:X} on Microsoft Learn", BugcheckCatalog.Url(code)));
                 summary = $"Windows hit a fatal error (STOP 0x{code:X8}) and restarted itself. " +
                           (hint is not null ? hint + " " : "") +
                           (string.IsNullOrWhiteSpace(dumpPath)
@@ -325,8 +359,6 @@ public static class RebootAnalyzer
         Detail("Down for", downtime is null ? null : Format.Duration(downtime));
         Detail("Previous session uptime", previousUptime is null ? null : Format.Duration(previousUptime));
         Detail("Boot type", bootTypeText);
-        foreach (var u in updates.Take(6))
-            Detail(u.Failed ? "Update failed before shutdown" : "Update installed before shutdown", u.Title);
 
         Cite(e1074 is null ? null : (category is RebootCategory.BlueScreen or RebootCategory.Unexpected ? e1074 : null));
         Cite(kg13); Cite(e6006); Cite(kp109); Cite(boot); Cite(kb27);
@@ -346,12 +378,14 @@ public static class RebootAnalyzer
             DumpPath = dumpPath,
             Details = details.DistinctBy(d => d.Key + "\u0001" + d.Value).ToList(),
             Evidence = evidence.Distinct().ToList(),
+            Links = links,
+            Updates = updateItems,
         };
     }
 
     // ---------------------------------------------------------------- live kernel events
 
-    private static IEnumerable<RebootEntry> LiveKernelEvents(List<RawEvent> events)
+    private static IEnumerable<RebootEntry> LiveKernelEvents(List<RawEvent> events, AnalysisOptions options)
     {
         // WER re-files the same report every time it retries the upload, so group by the
         // underlying fault (dump file, else report id, else code + parameters) and keep the first.
@@ -392,7 +426,7 @@ public static class RebootAnalyzer
                 new("Live kernel event code", $"0x{code:X} ({name})"),
                 new("Parameters", string.Join(", ", new[] { e.Get("P2"), e.Get("P3"), e.Get("P4"), e.Get("P5") }.Where(s => s.Length > 0))),
             };
-            if (dump is not null) details.Add(new("Dump file", dump + (File.Exists(dump) ? "" : " (no longer present)")));
+            if (dump is not null) details.Add(new("Dump file", dump + (File.Exists(options.MapPath(dump)) ? "" : " (no longer present)")));
             if (when != e.Time) details.Add(new("First reported to Windows Error Reporting", Format.When(e.Time)));
             if (retries > 0) details.Add(new("Report re-filed by Windows Error Reporting", $"{retries} more time(s), last on {Format.WhenShort(group.Last().Time)}"));
 
@@ -405,6 +439,7 @@ public static class RebootAnalyzer
                 DumpPath = dump,
                 Details = details,
                 Evidence = new List<EvidenceEvent> { e.ToEvidence() },
+                Links = new List<LinkItem> { new($"Code 0x{code:X} on Microsoft Learn", BugcheckCatalog.Url(code)) },
             };
         }
     }
@@ -471,6 +506,26 @@ public static class RebootAnalyzer
     }
 
     // ---------------------------------------------------------------- helpers
+
+    /// <summary>Keeps the first sentence or two of a history description; some run to a paragraph.</summary>
+    public static string? Shorten(string? text, int max = 220)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var t = text.Trim();
+        if (t.Length <= max) return t;
+        var cut = t.LastIndexOf(". ", max, StringComparison.Ordinal);
+        if (cut >= 60) return t[..(cut + 1)];
+        var space = t.LastIndexOf(' ', max);
+        return (space > 60 ? t[..space] : t[..max]).TrimEnd('.', ',', ';', ':') + "…";
+    }
+
+    /// <summary>Accepts a support URL only when it points at a page, not just a host such as http://support.microsoft.com.</summary>
+    public static string? SpecificUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri)) return null;
+        if (uri.Scheme is not ("http" or "https")) return null;
+        return uri.AbsolutePath.Length > 1 || uri.Query.Length > 1 ? uri.ToString() : null;
+    }
 
     private static DateTime? ParseUnexpectedShutdownTime(RawEvent e6008)
     {
