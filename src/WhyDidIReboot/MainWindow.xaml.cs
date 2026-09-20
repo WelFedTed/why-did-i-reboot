@@ -15,6 +15,14 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = _vm;
+        _vm.RequestCustomRange = current =>
+        {
+            var dialog = new CustomRangeWindow(current) { Owner = this };
+            return dialog.ShowDialog() == true ? dialog.Result : null;
+        };
+        _vm.Confirm = text => MessageBox.Show(this, text, "Why Did I Reboot", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+        _vm.Notify = text => MessageBox.Show(this, text, "Why Did I Reboot", MessageBoxButton.OK, MessageBoxImage.Information);
+
         // The caption bar can only be recoloured once the native window exists.
         SourceInitialized += (_, _) => ThemeManager.ApplyTitleBar(this);
         Loaded += async (_, _) =>
@@ -44,15 +52,56 @@ public partial class MainWindow : Window
         if (!string.IsNullOrEmpty(last) && Directory.Exists(last)) dialog.InitialDirectory = last;
 
         if (dialog.ShowDialog(this) != true) return;
+        await OpenPathAsync(dialog.FolderName);
+    }
 
-        var ok = await _vm.LoadOfflineAsync(dialog.FolderName);
-        if (!ok)
+    /// <summary>Lets the user pick a CSV report this app exported and shows its entries.</summary>
+    public async void BrowseCsv()
+    {
+        var dialog = new OpenFileDialog
         {
-            MessageBox.Show(this,
-                $"No System.evtx was found under:\n{dialog.FolderName}\n\n" +
-                "Pick the drive root (for example D:\\), its Windows folder, or Windows\\System32\\winevt\\Logs.",
-                "Event logs not found", MessageBoxButton.OK, MessageBoxImage.Information);
+            Title = "Open a CSV report exported by Why Did I Reboot",
+            Filter = "CSV report (*.csv)|*.csv",
+        };
+        if (dialog.ShowDialog(this) != true) return;
+        await OpenPathAsync(dialog.FileName);
+    }
+
+    /// <summary>Opens a dropped or chosen path: a .csv report, or a folder/.evtx of another installation.</summary>
+    private async Task OpenPathAsync(string path)
+    {
+        try
+        {
+            if (path.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!await _vm.LoadCsvAsync(path))
+                    MessageBox.Show(this, $"Could not open:\n{path}", "CSV not found", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (!await _vm.LoadOfflineAsync(path))
+            {
+                MessageBox.Show(this,
+                    $"No System.evtx was found under:\n{path}\n\n" +
+                    "Pick the drive root (for example D:\\), its Windows folder, or Windows\\System32\\winevt\\Logs.",
+                    "Event logs not found", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "Could not open", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void Window_DragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private async void Window_Drop(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetData(DataFormats.FileDrop) is string[] { Length: > 0 } paths)
+            await OpenPathAsync(paths[0]);
     }
 
     private void Export_Click(object sender, RoutedEventArgs e)
@@ -63,7 +112,7 @@ public partial class MainWindow : Window
         {
             Title = "Export reboot history",
             FileName = $"why-did-i-reboot-{subject}-{DateTime.Now:yyyyMMdd-HHmm}",
-            Filter = "HTML report (*.html)|*.html|Text report (*.txt)|*.txt|CSV spreadsheet (*.csv)|*.csv",
+            Filter = "HTML report (*.html)|*.html|Text report (*.txt)|*.txt|CSV report, re-openable in this app (*.csv)|*.csv",
             DefaultExt = ".html",
         };
         if (dialog.ShowDialog(this) != true) return;
@@ -90,6 +139,6 @@ public partial class MainWindow : Window
         var dialog = new SettingsWindow(_vm) { Owner = this };
         dialog.ShowDialog();
         if (dialog.BrowseRequested) BrowseOfflineLogs();
+        else if (dialog.CsvRequested) BrowseCsv();
     }
-
 }

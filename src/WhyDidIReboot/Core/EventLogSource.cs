@@ -38,16 +38,16 @@ public static class EventLogSource
     public static List<RawEvent> Read(int? days, List<string> warnings, out int recordsRead) =>
         Read(LogLocation.Local, days, warnings, out recordsRead);
 
-    /// <summary>Reads from the live logs or from .evtx files of another Windows installation.</summary>
-    public static List<RawEvent> Read(LogLocation location, int? days, List<string> warnings, out int recordsRead)
+    public static List<RawEvent> Read(LogLocation location, int? days, List<string> warnings, out int recordsRead) =>
+        Read(location, TimeRange.LastDays(days), warnings, out recordsRead);
+
+    /// <summary>Reads from the live logs or from .evtx files of another Windows installation, within a time window.</summary>
+    public static List<RawEvent> Read(LogLocation location, TimeRange range, List<string> warnings, out int recordsRead)
     {
         var result = new List<RawEvent>();
         recordsRead = 0;
         var pathType = location.IsOffline ? PathType.FilePath : PathType.LogName;
-
-        var timeClause = days is int d
-            ? $" and TimeCreated[timediff(@SystemTime) <= {(long)d * 86_400_000L}]"
-            : "";
+        var timeClause = TimeClause(range);
 
         var idClause = string.Join(" or ", SystemIds.Select(i => $"EventID={i}"));
         var systemQuery = $"*[System[({idClause}){timeClause}]]";
@@ -83,6 +83,15 @@ public static class EventLogSource
             return c != 0 ? c : a.RecordId.CompareTo(b.RecordId);
         });
         return result;
+    }
+
+    /// <summary>XPath predicate for the window, in UTC as the event log stores SystemTime.</summary>
+    public static string TimeClause(TimeRange range)
+    {
+        var parts = new List<string>();
+        if (range.From is DateTime from) parts.Add($"@SystemTime>='{from.ToUniversalTime():yyyy-MM-dd'T'HH:mm:ss.fff'Z'}'");
+        if (range.To is DateTime to) parts.Add($"@SystemTime<='{to.ToUniversalTime():yyyy-MM-dd'T'HH:mm:ss.fff'Z'}'");
+        return parts.Count == 0 ? "" : " and TimeCreated[" + string.Join(" and ", parts) + "]";
     }
 
     private static int ReadLog(string path, PathType pathType, string log, string xpath, List<RawEvent> sink, List<string> warnings,

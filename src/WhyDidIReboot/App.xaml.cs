@@ -40,11 +40,22 @@ public partial class App : Application
                 location = resolved;
             }
 
+            // --from yyyy-MM-dd [--to yyyy-MM-dd]: an explicit window instead of --days.
+            var range = TimeRange.LastDays(days);
+            var fromIndex = Array.FindIndex(args, a => a.Equals("--from", StringComparison.OrdinalIgnoreCase));
+            var toIndex = Array.FindIndex(args, a => a.Equals("--to", StringComparison.OrdinalIgnoreCase));
+            if (fromIndex >= 0 || toIndex >= 0)
+            {
+                DateTime? from = fromIndex >= 0 && fromIndex + 1 < args.Length && DateTime.TryParse(args[fromIndex + 1], out var f) ? f.Date : null;
+                DateTime? to = toIndex >= 0 && toIndex + 1 < args.Length && DateTime.TryParse(args[toIndex + 1], out var t) ? t.Date.AddDays(1).AddTicks(-1) : null;
+                range = new TimeRange(from, to);
+            }
+
             try
             {
-                var result = RebootAnalyzer.Analyze(days, location);
+                var result = RebootAnalyzer.Analyze(range, location);
                 var entries = result.Entries.Where(x => includeSleep || x.Category != RebootCategory.Sleep);
-                var label = days is int dd ? $"last {dd} days" : "everything";
+                var label = fromIndex >= 0 || toIndex >= 0 ? range.Label : days is int dd ? $"last {dd} days" : "everything";
                 var text = path.EndsWith(".csv", StringComparison.OrdinalIgnoreCase) ? TextExporter.ToCsv(entries)
                     : path.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".htm", StringComparison.OrdinalIgnoreCase)
                         ? TextExporter.ToHtml(result, entries, label)

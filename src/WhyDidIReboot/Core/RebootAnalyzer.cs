@@ -30,12 +30,29 @@ public static class RebootAnalyzer
 
     public static AnalysisResult Analyze(int? days) => Analyze(days, LogLocation.Local);
 
-    /// <summary>Reads and analyses either this PC's logs or the .evtx files of another installation.</summary>
-    public static AnalysisResult Analyze(int? days, LogLocation location)
+    public static AnalysisResult Analyze(int? days, LogLocation location) => Analyze(TimeRange.LastDays(days), location);
+
+    /// <summary>Reads and analyses this PC's logs, another installation's .evtx files, or a CSV report this app exported.</summary>
+    public static AnalysisResult Analyze(TimeRange range, LogLocation location)
     {
         var sw = Stopwatch.StartNew();
         var warnings = new List<string>();
-        var events = EventLogSource.Read(location, days, warnings, out var read);
+
+        if (location.IsCsv)
+        {
+            var imported = CsvReport.Load(location.SystemPath, warnings).Where(e => range.Contains(e.Timestamp)).ToList();
+            return new AnalysisResult
+            {
+                Entries = imported.OrderByDescending(e => e.Timestamp).ToList(),
+                RecordsRead = imported.Count,
+                Elapsed = sw.Elapsed,
+                CurrentBootTime = imported.Where(e => e.IsReboot && e.BootTime is not null).Select(e => e.BootTime!.Value).DefaultIfEmpty(DateTime.MinValue).Max(),
+                Source = location,
+                Warnings = warnings,
+            };
+        }
+
+        var events = EventLogSource.Read(location, range, warnings, out var read);
 
         // Windows Update history describes updates installed on *this* PC; it says nothing about another drive.
         var options = new AnalysisOptions
@@ -43,7 +60,9 @@ public static class RebootAnalyzer
             MapPath = location.MapPath,
             UpdateDetails = location.IsOffline ? AnalysisOptions.Default.UpdateDetails : WindowsUpdateHistory.Load(warnings),
         };
-        var entries = Build(events, options);
+        // Events are queried by log time, but a card's own timestamp can differ (a live kernel report
+        // re-filed months after the fault is dated from its dump name), so hold cards to the window too.
+        var entries = Build(events, options).Where(e => range.Contains(e.Timestamp)).ToList();
 
         var bootTime = location.IsOffline
             ? entries.Where(e => e.IsReboot && e.BootTime is not null).Select(e => e.BootTime!.Value).DefaultIfEmpty(DateTime.MinValue).Max()
@@ -111,6 +130,7 @@ public static class RebootAnalyzer
             Downtime = e.Downtime,
             PreviousUptime = e.PreviousUptime,
             DumpPath = e.DumpPath,
+            DumpExists = e.DumpExists,
             Details = details,
             Evidence = evidence,
             Links = e.Links,
@@ -177,7 +197,7 @@ public static class RebootAnalyzer
                 if (!options.UpdateDetails.TryGetValue(kb ?? "", out var info))
                     options.UpdateDetails.TryGetValue(u.Title.Trim(), out info);
                 // The KB article is the most specific page. History's SupportUrl is often just a host or a generic fwlink.
-                var url = KnowledgeBase.Url(kb) ?? SpecificUrl(info?.SupportUrl);
+                var url = KnowledgeBase.Url(kb) ?? SpecificUrl(info?.SupportUrl) ?? CatalogUrl(u.Title);
                 var group = UpdateClassifier.Group(u.Title, info?.Category);
                 return new UpdateItem(u.Title, kb, Shorten(info?.Description), info?.Category, url, g.Any(x => x.Failed), group);
             })
@@ -187,6 +207,7 @@ public static class RebootAnalyzer
         string title;
         string summary;
         string? dumpPath = null;
+        var dumpExists = false;
 
         var unexpected = kp41 is not null || e6008 is not null;
         var isResume = bootType == "2";
@@ -207,7 +228,7 @@ public static class RebootAnalyzer
                 var hint = BugcheckCatalog.Hint(code);
                 title = $"Crashed with a blue screen: {name}";
                 dumpPath = bugcheck?.Get("param2", 1);
-                var dumpExists = !string.IsNullOrWhiteSpace(dumpPath) && File.Exists(options.MapPath(dumpPath));
+                dumpExists = !string.IsNullOrWhiteSpace(dumpPath) && File.Exists(options.MapPath(dumpPath));
                 links.Add(new LinkItem($"STOP 0x{code:X} on Microsoft Learn", BugcheckCatalog.Url(code)));
                 summary = $"Windows hit a fatal error (STOP 0x{code:X8}) and restarted itself. " +
                           (hint is not null ? hint + " " : "") +
@@ -408,6 +429,7 @@ public static class RebootAnalyzer
             Evidence = evidence.Distinct().ToList(),
             Links = links,
             Updates = updateItems,
+            DumpExists = dumpExists,
         };
     }
 
@@ -454,7 +476,8 @@ public static class RebootAnalyzer
                 new("Live kernel event code", $"0x{code:X} ({name})"),
                 new("Parameters", string.Join(", ", new[] { e.Get("P2"), e.Get("P3"), e.Get("P4"), e.Get("P5") }.Where(s => s.Length > 0))),
             };
-            if (dump is not null) details.Add(new("Dump file", dump + (File.Exists(options.MapPath(dump)) ? "" : " (no longer present)")));
+            var dumpExists = dump is not null && File.Exists(options.MapPath(dump));
+            if (dump is not null) details.Add(new("Dump file", dump + (dumpExists ? "" : " (no longer present)")));
             if (when != e.Time) details.Add(new("First reported to Windows Error Reporting", Format.When(e.Time)));
             if (retries > 0) details.Add(new("Report re-filed by Windows Error Reporting", $"{retries} more time(s), last on {Format.WhenShort(group.Last().Time)}"));
 
@@ -468,6 +491,7 @@ public static class RebootAnalyzer
                 Details = details,
                 Evidence = new List<EvidenceEvent> { e.ToEvidence() },
                 Links = new List<LinkItem> { new($"Code 0x{code:X} on Microsoft Learn", BugcheckCatalog.Url(code)) },
+                DumpExists = dumpExists,
             };
         }
     }
@@ -547,13 +571,24 @@ public static class RebootAnalyzer
         return (space > 60 ? t[..space] : t[..max]).TrimEnd('.', ',', ';', ':') + "…";
     }
 
-    /// <summary>Accepts a support URL only when it points at a page, not just a host such as http://support.microsoft.com.</summary>
+    /// <summary>
+    /// Accepts a support URL only when it points at a real page: not a bare host such as http://support.microsoft.com,
+    /// and not the generic hub redirect (support.microsoft.com/select/?target=hub) that update history attaches to drivers.
+    /// </summary>
     public static string? SpecificUrl(string? url)
     {
         if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri)) return null;
         if (uri.Scheme is not ("http" or "https")) return null;
-        return uri.AbsolutePath.Length > 1 || uri.Query.Length > 1 ? uri.ToString() : null;
+        var path = uri.AbsolutePath.TrimEnd('/');
+        if (path.Length == 0 && uri.Query.Length <= 1) return null;
+        if (path.StartsWith("/select", StringComparison.OrdinalIgnoreCase)) return null;
+        if (uri.Query.Contains("target=hub", StringComparison.OrdinalIgnoreCase)) return null;
+        return uri.ToString();
     }
+
+    /// <summary>Microsoft Update Catalog search for an update title; the reliable page for driver updates without a KB.</summary>
+    public static string CatalogUrl(string title) =>
+        "https://www.catalog.update.microsoft.com/Search.aspx?q=" + Uri.EscapeDataString(title.Trim());
 
     private static DateTime? ParseUnexpectedShutdownTime(RawEvent e6008)
     {

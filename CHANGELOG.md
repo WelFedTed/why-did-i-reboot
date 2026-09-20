@@ -8,6 +8,14 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+### Added
+- **Debug in WinDbg** link on crash cards whose dump file is on disk. It opens the dump in WinDbg with `!analyze -v` queued. If WinDbg is not installed, the app offers to install it with winget (`Microsoft.WinDbg`) in a visible console window and opens the dump when that finishes; without winget it opens the Microsoft Store page.
+- **Custom range…** in the period drop-down: pick a from/to date (with this month / last month / this year shortcuts). The chosen window appears as its own entry above *Custom range…*. Headless: `--from yyyy-MM-dd --to yyyy-MM-dd`.
+- **Open a saved CSV report.** Settings → *Open CSV…*, `--source report.csv`, or drop a `.csv` (or a Windows folder) onto the main window. The CSV export now carries details, links, installed updates and log records in extra columns so a re-opened file shows every card in full; older nine-column files still open.
+
+### Fixed
+- Driver updates linked to Windows Update history's generic `support.microsoft.com/select/?target=hub` page, which does not work. Such links are dropped; updates without a KB number now link to a Microsoft Update Catalog search for the title instead.
+
 ### Changed
 - The app shows "N of M shown" under the search box, like the HTML report, and the status bar's right corner shows the app version (e.g. v0.7.0) instead of the count.
 - The HTML report's footer and the text report's header name the app version that produced them.

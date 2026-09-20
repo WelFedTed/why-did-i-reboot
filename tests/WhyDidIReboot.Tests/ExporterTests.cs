@@ -61,13 +61,17 @@ public class ExporterTests
     public void Csv_has_a_header_row_and_escapes_quotes()
     {
         var csv = TextExporter.ToCsv(Result.Entries);
-        var lines = csv.TrimEnd().Split(Environment.NewLine);
+        var rows = CsvReport.ReadRows(csv);
 
-        Assert.Equal("Timestamp,Category,Title,Summary,ShutdownTime,BootTime,DowntimeSeconds,PreviousUptimeSeconds,DumpPath", lines[0]);
-        Assert.Equal(3, lines.Length);
-        Assert.Contains("\"Windows Update restarted the PC, \"\"quoted\"\" text included.\"", lines[1]);
-        Assert.EndsWith(",28,,\"\"", lines[1]);
-        Assert.EndsWith(",322,4380,\"C:\\Windows\\Minidump\\071226-7000-01.dmp\"", lines[2]);
+        Assert.Equal(CsvReport.Columns, rows[0]);
+        Assert.Equal(3, rows.Count);
+        Assert.Contains("\"Windows Update restarted the PC, \"\"quoted\"\" text included.\"", csv);
+        Assert.Equal("28", rows[1][6]);
+        Assert.Equal("", rows[1][7]);
+        Assert.Equal("322", rows[2][6]);
+        Assert.Equal("4380", rows[2][7]);
+        Assert.Equal(@"C:\Windows\Minidump\071226-7000-01.dmp", rows[2][8]);
+        Assert.Contains("STOP code\t0x0000009F", rows[2][9]);   // details packed as key<tab>value lines
     }
 
     [Fact]

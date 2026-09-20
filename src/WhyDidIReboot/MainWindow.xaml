@@ -5,7 +5,8 @@
         Title="{Binding WindowTitle}" Width="1120" Height="780" MinWidth="820" MinHeight="520"
         WindowStartupLocation="CenterScreen" Background="{DynamicResource WindowBg}"
         FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13" TextOptions.TextFormattingMode="Display"
-        UseLayoutRounding="True" SnapsToDevicePixels="True">
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        AllowDrop="True" DragOver="Window_DragOver" Drop="Window_Drop">
     <Window.Resources>
         <local:CategoryConverter x:Key="Cat"/>
         <local:SubtitleConverter x:Key="Subtitle"/>
@@ -189,6 +190,10 @@
                                     <Button Content="Open dump folder" Style="{StaticResource LinkButton}"
                                             Visibility="{Binding DumpPath, Converter={StaticResource NullToCollapsed}}"
                                             Command="{Binding DataContext.OpenDumpCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                                    <!-- Only when the dump file is actually on disk: opens it in WinDbg (installing WinDbg via winget if needed) -->
+                                    <Button Content="Debug in WinDbg" Style="{StaticResource LinkButton}" ToolTip="Open the crash dump in WinDbg and run !analyze -v"
+                                            Visibility="{Binding DumpExists, Converter={StaticResource BoolToVis}}"
+                                            Command="{Binding DataContext.OpenInWinDbgCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
                                 </StackPanel>
                             </StackPanel>
                         </Expander>
@@ -221,7 +226,7 @@
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <ComboBox Style="{StaticResource ThemedComboBox}" ItemsSource="{Binding Ranges}" SelectedItem="{Binding Range}" Width="190"
-                              ItemTemplate="{StaticResource LabelTemplate}"/>
+                              ItemTemplate="{StaticResource LabelTemplate}" AutomationProperties.Name="Period" ToolTip="Which period to show"/>
                     <Button Style="{StaticResource ToolButton}" Command="{Binding RefreshCommand}" ToolTip="Re-read the event log (F5)" AutomationProperties.Name="Refresh">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xE72C;" FontFamily="{StaticResource IconFont}" Margin="0,0,6,0" VerticalAlignment="Center"/>

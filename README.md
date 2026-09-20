@@ -31,7 +31,10 @@ Settings (the cog in the header) holds the theme picker, an update check against
 - **Light and dark themes**: follows the Windows app theme by default, or pick Light / Dark in Settings (the cog in the header). The choice is remembered in `%LocalAppData%\WhyDidIReboot\settings.json`.
 - **Installed updates**: a card lists each update installed shortly before the restart, grouped into Windows, Security, Drivers, Apps and Other, with its short description and classification from Windows Update history, a *failed* marker where installation failed, and a link to the Microsoft Support (KB) article. Blue screen cards link to the Microsoft Learn page for the STOP code.
 - **Driver labels**: known driver file names are explained inline, e.g. `nvlddmkm.sys (NVIDIA kernel-mode display driver)`.
-- **Logs from another Windows installation**: Settings → *Open logs…* or **F9**, then pick a second drive, its Windows folder, or a copied `winevt\Logs` folder. Crash dump paths are checked on that drive. Also `--source <folder>` on the command line.
+- **Debug in WinDbg**: crash cards whose dump file still exists offer to open it in WinDbg with `!analyze -v` queued. If WinDbg isn't installed, the app offers to install it through winget and then opens the dump.
+- **Any period**: last 7 / 30 / 90 days, last year, everything, or a custom from/to range. Headless: `--days N`, `--days all`, or `--from yyyy-MM-dd --to yyyy-MM-dd`.
+- **Logs from another Windows installation**: Settings → *Open logs…* or **F9**, then pick a second drive, its Windows folder, or a copied `winevt\Logs` folder. Crash dump paths are checked on that drive. Also `--source <folder>` on the command line, or drop the folder onto the window.
+- **Saved reports**: the CSV export keeps every card field, and can be re-opened later from Settings → *Open CSV…*, with `--source report.csv`, or by dropping the file onto the window.
 - **Updates**: checks GitHub Releases once at startup (toggle in Settings, on by default) or on demand. When a newer version exists, *Update now* downloads the matching build, verifies the published SHA-256 digest, the executable header and its version, swaps it in beside the running copy and relaunches. Nothing is sent beyond the requests themselves.
 - Buttons to jump to Event Viewer or straight to a crash dump in Explorer.
 

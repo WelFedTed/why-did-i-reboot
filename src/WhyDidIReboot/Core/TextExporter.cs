@@ -10,7 +10,9 @@ public static class TextExporter
         var sb = new StringBuilder();
         sb.AppendLine($"Why Did I Reboot {AppInfo.VersionTag} — report for {(result.Source.IsOffline ? "logs at " + result.Source.Display : Environment.MachineName)}");
         sb.AppendLine($"Generated {Format.When(DateTime.Now)} · Range: {rangeLabel} · Log records read: {result.RecordsRead}");
-        sb.AppendLine(result.Source.IsOffline
+        sb.AppendLine(result.Source.IsCsv
+            ? $"Entries re-opened from a saved CSV report. Last recorded boot: {Format.When(result.CurrentBootTime)}"
+            : result.Source.IsOffline
             ? $"Offline logs from another Windows installation. Last recorded boot: {Format.When(result.CurrentBootTime)}"
             : $"Current session: up since {Format.When(result.CurrentBootTime)} ({Format.Duration(DateTime.Now - result.CurrentBootTime)})");
         foreach (var w in result.Warnings) sb.AppendLine($"Warning: {w}");
@@ -55,25 +57,8 @@ public static class TextExporter
         return sb.ToString().TrimEnd();
     }
 
-    public static string ToCsv(IEnumerable<RebootEntry> entries)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("Timestamp,Category,Title,Summary,ShutdownTime,BootTime,DowntimeSeconds,PreviousUptimeSeconds,DumpPath");
-        foreach (var e in entries)
-        {
-            sb.Append(Csv(e.Timestamp.ToString("yyyy-MM-dd HH:mm:ss"))).Append(',')
-              .Append(Csv(Format.Category(e.Category))).Append(',')
-              .Append(Csv(e.Title)).Append(',')
-              .Append(Csv(e.Summary)).Append(',')
-              .Append(Csv(e.ShutdownTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? "")).Append(',')
-              .Append(Csv(e.BootTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? "")).Append(',')
-              .Append(e.Downtime is TimeSpan d ? ((long)d.TotalSeconds).ToString() : "").Append(',')
-              .Append(e.PreviousUptime is TimeSpan u ? ((long)u.TotalSeconds).ToString() : "").Append(',')
-              .Append(Csv(e.DumpPath ?? ""))
-              .AppendLine();
-        }
-        return sb.ToString();
-    }
+    /// <summary>CSV with every card field, so the file can be opened again in the app. See <see cref="CsvReport"/>.</summary>
+    public static string ToCsv(IEnumerable<RebootEntry> entries) => CsvReport.ToCsv(entries);
 
     /// <summary>A self-contained HTML report that mirrors the app's cards and follows the viewer's light/dark preference.</summary>
     public static string ToHtml(AnalysisResult result, IEnumerable<RebootEntry> entries, string rangeLabel)
@@ -149,7 +134,9 @@ table.kv{border-collapse:collapse;margin-top:8px}
         var subject = result.Source.IsOffline ? "logs at " + H(result.Source.Display) : machine;
         sb.Append($"<p class=\"sub\">Report for <b>{subject}</b> · generated {H(Format.When(DateTime.Now))} · range: {H(rangeLabel)} · {result.RecordsRead:N0} log records read</p>\n");
         sb.Append("<div class=\"banner\">");
-        sb.Append(result.Source.IsOffline
+        sb.Append(result.Source.IsCsv
+            ? $"Entries re-opened from a saved CSV report. Last recorded boot: {H(Format.When(result.CurrentBootTime))}."
+            : result.Source.IsOffline
             ? $"Offline logs from another Windows installation. Last recorded boot: {H(Format.When(result.CurrentBootTime))}."
             : $"This PC has been running since {H(Format.When(result.CurrentBootTime))} ({H(Format.Duration(DateTime.Now - result.CurrentBootTime))} ago).");
         foreach (var w in result.Warnings) sb.Append($"<div class=\"warn\">{H(w)}</div>");

@@ -54,8 +54,37 @@ public sealed record LinkItem(string Label, string Url);
 /// <summary>An update installed shortly before a reboot, enriched from Windows Update history when available.</summary>
 public sealed record UpdateItem(string Title, string? Kb, string? Description, string? Category, string? Url, bool Failed, string Group = UpdateClassifier.Other)
 {
-    /// <summary>"KB5094126 on Microsoft Support", or just "Microsoft Support" when no KB number is known.</summary>
-    public string LinkLabel => Kb is null ? "Microsoft Support" : $"{Kb} on Microsoft Support";
+    /// <summary>"KB5094126 on Microsoft Support", "Microsoft Update Catalog" for catalog searches, else "Microsoft Support".</summary>
+    public string LinkLabel =>
+        Kb is not null ? $"{Kb} on Microsoft Support"
+        : Url is not null && Url.Contains("catalog.update.microsoft.com", StringComparison.OrdinalIgnoreCase) ? "Microsoft Update Catalog"
+        : "Microsoft Support";
+}
+
+/// <summary>An inclusive window of event times. Null bounds are open-ended.</summary>
+public sealed record TimeRange(DateTime? From, DateTime? To)
+{
+    public static readonly TimeRange All = new(null, null);
+
+    /// <summary>"Last N days" as a window ending now; null means everything.</summary>
+    public static TimeRange LastDays(int? days) => days is int d ? new(DateTime.Now.AddDays(-d), null) : All;
+
+    /// <summary>Whole calendar days: From at 00:00 on the first day, To at the end of the last.</summary>
+    public static TimeRange Days(DateTime firstDay, DateTime lastDay)
+    {
+        var a = firstDay.Date;
+        var b = lastDay.Date;
+        if (b < a) (a, b) = (b, a);
+        return new(a, b.AddDays(1).AddTicks(-1));
+    }
+
+    public bool Contains(DateTime t) => (From is null || t >= From) && (To is null || t <= To);
+
+    public string Label =>
+        From is null && To is null ? "everything"
+        : To is null ? $"since {From:d MMM yyyy}"
+        : From is null ? $"until {To:d MMM yyyy}"
+        : $"{From:d MMM yyyy} – {To:d MMM yyyy}";
 }
 
 /// <summary>Updates on a card bucketed under one heading, e.g. "Drivers".</summary>
@@ -69,9 +98,15 @@ public sealed record LogLocation(string SystemPath, string? ApplicationPath, str
 {
     public static readonly LogLocation Local = new("System", "Application", null, "this PC", false);
 
+    /// <summary>True when <see cref="SystemPath"/> is a CSV report this app exported, not an event log.</summary>
+    public bool IsCsv { get; init; }
+
+    public static LogLocation ForCsv(string path) =>
+        new(path, null, null, Path.GetFileName(path), true) { IsCsv = true };
+
     /// <summary>
-    /// Accepts a drive root (D:\), a Windows folder (D:\Windows), the winevt\Logs folder, or a System.evtx file,
-    /// and finds the System and Application logs. <paramref name="fileExists"/> is injectable for tests.
+    /// Accepts a drive root (D:\), a Windows folder (D:\Windows), the winevt\Logs folder, a System.evtx file,
+    /// or a .csv report exported by this app, and finds what to read. <paramref name="fileExists"/> is injectable for tests.
     /// </summary>
     public static LogLocation? Resolve(string path, Func<string, bool>? fileExists = null)
     {
@@ -79,6 +114,7 @@ public sealed record LogLocation(string SystemPath, string? ApplicationPath, str
         if (string.IsNullOrWhiteSpace(path)) return null;
         var p = path.Trim().TrimEnd('\\', '/');
         if (p.Length == 2 && p[1] == ':') p += '\\';   // "D:" → "D:\"
+        if (p.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)) return fileExists(p) ? ForCsv(p) : null;
 
         var candidates = new List<string>();
         if (p.EndsWith(".evtx", StringComparison.OrdinalIgnoreCase)) candidates.Add(p);
@@ -138,6 +174,9 @@ public sealed class RebootEntry
     public TimeSpan? Downtime { get; init; }
     public TimeSpan? PreviousUptime { get; init; }
     public string? DumpPath { get; init; }
+
+    /// <summary>True when the dump file was found on disk (after any offline path mapping) at analysis time.</summary>
+    public bool DumpExists { get; init; }
 
     public List<KeyValuePair<string, string>> Details { get; init; } = new();
     public List<EvidenceEvent> Evidence { get; init; } = new();

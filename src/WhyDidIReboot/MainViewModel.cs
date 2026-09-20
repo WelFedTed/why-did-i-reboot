@@ -9,7 +9,11 @@ using WhyDidIReboot.Core;
 
 namespace WhyDidIReboot;
 
-public sealed record RangeOption(string Label, int? Days);
+/// <summary>A period in the drop-down: a rolling "last N days", an explicit window, or the "Custom range…" picker entry.</summary>
+public sealed record RangeOption(string Label, int? Days, TimeRange? Window = null, bool IsPicker = false)
+{
+    public TimeRange Range => Window ?? TimeRange.LastDays(Days);
+}
 public sealed record ThemeOption(string Label, ThemeMode Mode);
 
 /// <summary>Glyph per category plus theme-aware brushes, shared by chips and cards.</summary>
@@ -110,13 +114,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
             CategoryStyle.All.Keys.Select(c => new CategoryFilter(c)));
         foreach (var c in Categories) c.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(CategoryFilter.IsChecked)) View.Refresh(); UpdateShown(); };
 
-        Ranges = new[]
+        Ranges = new ObservableCollection<RangeOption>
         {
-            new RangeOption("Last 7 days", 7),
-            new RangeOption("Last 30 days", 30),
-            new RangeOption("Last 90 days", 90),
-            new RangeOption("Last year", 365),
-            new RangeOption("Everything in the log", null),
+            new("Last 7 days", 7),
+            new("Last 30 days", 30),
+            new("Last 90 days", 90),
+            new("Last year", 365),
+            new("Everything in the log", null),
+            new("Custom range…", null, IsPicker: true),
         };
         _range = Ranges[3];
 
@@ -345,10 +350,98 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ICommand BackToThisPcCommand => _backToThisPc ??= new RelayCommand(async _ => { Location = LogLocation.Local; await RefreshAsync(); }, _ => IsOffline);
     private RelayCommand? _backToThisPc;
 
+    /// <summary>Opens a CSV report this app exported. Returns false if the file is not one of ours.</summary>
+    public async Task<bool> LoadCsvAsync(string path)
+    {
+        var resolved = LogLocation.Resolve(path);
+        if (resolved is null || !resolved.IsCsv) return false;
+        Location = resolved;
+        await RefreshAsync();
+        return true;
+    }
+
+    // ---------------------------------------------------------------- WinDbg
+
+    /// <summary>Set by the window: asks "install WinDbg with winget?" and returns the answer.</summary>
+    public Func<string, bool>? Confirm { get; set; }
+
+    /// <summary>Set by the window: shows a message the user must dismiss.</summary>
+    public Action<string>? Notify { get; set; }
+
+    private bool _isInstallingWinDbg;
+
+    /// <summary>Opens the entry's dump in WinDbg with "!analyze -v" queued, installing WinDbg through winget first if needed.</summary>
+    public ICommand OpenInWinDbgCommand => _openInWinDbg ??= new RelayCommand(async p => { if (p is RebootEntry e) await OpenInWinDbgAsync(e); }, _ => !_isInstallingWinDbg);
+    private RelayCommand? _openInWinDbg;
+
+    public async Task OpenInWinDbgAsync(RebootEntry entry)
+    {
+        if (entry.DumpPath is null) return;
+        var dump = _location.MapPath(entry.DumpPath);
+        if (!System.IO.File.Exists(dump)) { Notify?.Invoke($"The dump file is no longer there:\n{dump}"); return; }
+
+        var windbg = WinDbgLocator.Find();
+        if (windbg is null)
+        {
+            var winget = WinDbgLocator.FindWinget();
+            if (winget is null)
+            {
+                Notify?.Invoke("WinDbg is not installed and winget is not available to install it. Opening the Microsoft Store page instead.");
+                OpenExternal(WinDbgLocator.StoreUri, WinDbgLocator.LearnUrl);
+                return;
+            }
+            if (Confirm?.Invoke("WinDbg is not installed.\n\nInstall it now with winget (Microsoft.WinDbg)? A console window will show the download progress, and the dump will open when it finishes.") != true)
+                return;
+
+            _isInstallingWinDbg = true;
+            CommandManager.InvalidateRequerySuggested();
+            try
+            {
+                using var proc = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(winget, WinDbgLocator.WingetInstallArguments) { UseShellExecute = true });
+                if (proc is not null) await proc.WaitForExitAsync();
+                windbg = WinDbgLocator.Find();
+                if (windbg is null)
+                {
+                    Notify?.Invoke("winget finished but WinDbg was not found afterwards" + (proc is { ExitCode: not 0 } ? $" (winget exit code {proc.ExitCode})" : "") + ". Opening the Microsoft Store page so you can install it there.");
+                    OpenExternal(WinDbgLocator.StoreUri, WinDbgLocator.LearnUrl);
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                Notify?.Invoke("Could not run winget: " + ex.Message);
+                return;
+            }
+            finally
+            {
+                _isInstallingWinDbg = false;
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
+
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(windbg, WinDbgLocator.Arguments(dump)) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            Notify?.Invoke("Could not start WinDbg: " + ex.Message);
+        }
+    }
+
+    private static void OpenExternal(string primary, string fallback)
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(primary) { UseShellExecute = true }); }
+        catch { try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(fallback) { UseShellExecute = true }); } catch { } }
+    }
+
     // ---------------------------------------------------------------- bindings
 
     public ObservableCollection<CategoryFilter> Categories { get; }
-    public IReadOnlyList<RangeOption> Ranges { get; }
+    public ObservableCollection<RangeOption> Ranges { get; }
+
+    /// <summary>Set by the window: shows the from/to picker and returns the chosen window, or null if cancelled.</summary>
+    public Func<TimeRange?, TimeRange?>? RequestCustomRange { get; set; }
     public IReadOnlyList<ThemeOption> Themes { get; }
     public ICollectionView View { get; }
     public ICommand RefreshCommand { get; }
@@ -367,7 +460,39 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RangeOption Range
     {
         get => _range;
-        set { if (!ReferenceEquals(_range, value) && value is not null) { _range = value; OnPropertyChanged(); _ = RefreshAsync(); } }
+        set
+        {
+            if (value is null || ReferenceEquals(_range, value)) return;
+            if (value.IsPicker)
+            {
+                // Open the picker after the binding has finished, not inside the setter: WPF swallows
+                // exceptions thrown here and a modal dialog is not allowed while a binding is updating.
+                var previous = _range;
+                _range = value;
+                OnPropertyChanged();
+                System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+                {
+                    var chosen = RequestCustomRange?.Invoke(previous.Window);
+                    if (chosen is null)
+                    {
+                        _range = previous;                     // cancelled: back to what was selected before
+                        OnPropertyChanged(nameof(Range));
+                        return;
+                    }
+                    var custom = new RangeOption(chosen.Label, null, chosen);
+                    var existing = Ranges.FirstOrDefault(r => r.Window is not null && !r.IsPicker);
+                    if (existing is not null) Ranges[Ranges.IndexOf(existing)] = custom;
+                    else Ranges.Insert(Ranges.Count - 1, custom);   // just above "Custom range…"
+                    _range = custom;
+                    OnPropertyChanged(nameof(Range));
+                    _ = RefreshAsync();
+                });
+                return;
+            }
+            _range = value;
+            OnPropertyChanged();
+            _ = RefreshAsync();
+        }
     }
 
     public ThemeOption Theme
@@ -420,17 +545,22 @@ public sealed class MainViewModel : INotifyPropertyChanged
         if (IsBusy) return;
         IsBusy = true;
         StatusText = "Reading the Windows event logs…";
-        var days = _range.Days;
+        var range = _range.Range;
         var location = _location;
         try
         {
-            var result = await Task.Run(() => RebootAnalyzer.Analyze(days, location));
+            var result = await Task.Run(() => RebootAnalyzer.Analyze(range, location));
             _last = result;
             _entries.Clear();
             foreach (var e in result.Entries) _entries.Add(e);
             foreach (var c in Categories) c.Count = result.Entries.Count(e => e.Category == c.Category);
 
-            if (location.IsOffline)
+            if (location.IsCsv)
+            {
+                CurrentSessionText = $"Showing {result.RecordsRead} entries imported from {location.Display}." +
+                                     (result.CurrentBootTime == DateTime.MinValue ? "" : $" Last recorded boot: {Format.When(result.CurrentBootTime)}.");
+            }
+            else if (location.IsOffline)
             {
                 CurrentSessionText = result.CurrentBootTime == DateTime.MinValue
                     ? $"Showing logs from {location.Display} (another Windows installation). No boots recorded in this range."
