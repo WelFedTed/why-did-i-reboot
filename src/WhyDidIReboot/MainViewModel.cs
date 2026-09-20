@@ -376,49 +376,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public async Task OpenInWinDbgAsync(RebootEntry entry)
     {
-        if (entry.DumpPath is null) return;
-        var dump = _location.MapPath(entry.DumpPath);
-        if (!System.IO.File.Exists(dump)) { Notify?.Invoke($"The dump file is no longer there:\n{dump}"); return; }
-
-        var windbg = WinDbgLocator.Find();
-        if (windbg is null)
-        {
-            var winget = WinDbgLocator.FindWinget();
-            if (winget is null)
-            {
-                Notify?.Invoke("WinDbg is not installed and winget is not available to install it. Opening the Microsoft Store page instead.");
-                OpenExternal(WinDbgLocator.StoreUri, WinDbgLocator.LearnUrl);
-                return;
-            }
-            if (Confirm?.Invoke("WinDbg is not installed.\n\nInstall it now with winget (Microsoft.WinDbg)? A console window will show the download progress, and the dump will open when it finishes.") != true)
-                return;
-
-            _isInstallingWinDbg = true;
-            CommandManager.InvalidateRequerySuggested();
-            try
-            {
-                using var proc = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(winget, WinDbgLocator.WingetInstallArguments) { UseShellExecute = true });
-                if (proc is not null) await proc.WaitForExitAsync();
-                windbg = WinDbgLocator.Find();
-                if (windbg is null)
-                {
-                    Notify?.Invoke("winget finished but WinDbg was not found afterwards" + (proc is { ExitCode: not 0 } ? $" (winget exit code {proc.ExitCode})" : "") + ". Opening the Microsoft Store page so you can install it there.");
-                    OpenExternal(WinDbgLocator.StoreUri, WinDbgLocator.LearnUrl);
-                    return;
-                }
-            }
-            catch (Exception ex)
-            {
-                Notify?.Invoke("Could not run winget: " + ex.Message);
-                return;
-            }
-            finally
-            {
-                _isInstallingWinDbg = false;
-                CommandManager.InvalidateRequerySuggested();
-            }
-        }
-
+        var dump = DumpFor(entry);
+        if (dump is null) return;
+        var windbg = await EnsureWinDbgAsync("the dump will open when it finishes");
+        if (windbg is null) return;
         try
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(windbg, WinDbgLocator.Arguments(dump)) { UseShellExecute = true });
@@ -426,6 +387,129 @@ public sealed class MainViewModel : INotifyPropertyChanged
         catch (Exception ex)
         {
             Notify?.Invoke("Could not start WinDbg: " + ex.Message);
+        }
+    }
+
+    /// <summary>The entry's dump path mapped onto the current source, or null (after telling the user) if it is gone.</summary>
+    private string? DumpFor(RebootEntry entry)
+    {
+        if (entry.DumpPath is null) return null;
+        var dump = _location.MapPath(entry.DumpPath);
+        if (System.IO.File.Exists(dump)) return dump;
+        Notify?.Invoke($"The dump file is no longer there:\n{dump}");
+        return null;
+    }
+
+    /// <summary>Finds WinDbg, offering to install it with winget when missing. Null when unavailable or declined.</summary>
+    private async Task<string?> EnsureWinDbgAsync(string thenWhat)
+    {
+        var windbg = WinDbgLocator.Find();
+        if (windbg is not null) return windbg;
+
+        var winget = WinDbgLocator.FindWinget();
+        if (winget is null)
+        {
+            Notify?.Invoke("WinDbg is not installed and winget is not available to install it. Opening the Microsoft Store page instead.");
+            OpenExternal(WinDbgLocator.StoreUri, WinDbgLocator.LearnUrl);
+            return null;
+        }
+        if (Confirm?.Invoke($"WinDbg is not installed.\n\nInstall it now with winget (Microsoft.WinDbg)? A console window will show the download progress, and {thenWhat}.") != true)
+            return null;
+
+        _isInstallingWinDbg = true;
+        CommandManager.InvalidateRequerySuggested();
+        try
+        {
+            using var proc = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(winget, WinDbgLocator.WingetInstallArguments) { UseShellExecute = true });
+            if (proc is not null) await proc.WaitForExitAsync();
+            windbg = WinDbgLocator.Find();
+            if (windbg is null)
+            {
+                Notify?.Invoke("winget finished but WinDbg was not found afterwards" + (proc is { ExitCode: not 0 } ? $" (winget exit code {proc.ExitCode})" : "") + ". Opening the Microsoft Store page so you can install it there.");
+                OpenExternal(WinDbgLocator.StoreUri, WinDbgLocator.LearnUrl);
+            }
+            return windbg;
+        }
+        catch (Exception ex)
+        {
+            Notify?.Invoke("Could not run winget: " + ex.Message);
+            return null;
+        }
+        finally
+        {
+            _isInstallingWinDbg = false;
+            CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
+    // ---------------------------------------------------------------- Ask AI
+
+    public IReadOnlyList<AiChatService> AiChats => CrashAnalysis.Services;
+
+    public AiChatService AiChat
+    {
+        get => CrashAnalysis.ServiceByName(AppSettings.Current.AiChat);
+        set
+        {
+            if (value is null || value.Name == AppSettings.Current.AiChat) return;
+            AppSettings.Current.AiChat = value.Name;
+            AppSettings.Current.Save();
+            OnPropertyChanged();
+        }
+    }
+
+    private bool _isAskingAi;
+    public bool IsAskingAi { get => _isAskingAi; private set { _isAskingAi = value; OnPropertyChanged(); } }
+
+    /// <summary>Runs "!analyze -v" on the dump through WinDbg, then opens the chosen chat service with a prompt built from the output and the card.</summary>
+    public ICommand AskAiCommand => _askAi ??= new RelayCommand(async p => { if (p is RebootEntry e) await AskAiAsync(e); }, _ => !_isInstallingWinDbg && !IsAskingAi);
+    private RelayCommand? _askAi;
+
+    public async Task AskAiAsync(RebootEntry entry)
+    {
+        var dump = DumpFor(entry);
+        if (dump is null) return;
+        var windbg = await EnsureWinDbgAsync("the analysis will run when it finishes");
+        if (windbg is null) return;
+
+        IsAskingAi = true;
+        CommandManager.InvalidateRequerySuggested();
+        var workDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "WhyDidIReboot-analysis");
+        var log = System.IO.Path.Combine(workDir, System.IO.Path.GetFileNameWithoutExtension(dump) + ".analyze.txt");
+        try
+        {
+            System.IO.Directory.CreateDirectory(workDir);
+            if (System.IO.File.Exists(log)) System.IO.File.Delete(log);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(windbg, WinDbgLocator.AnalyzeToLogArguments(dump, log)) { UseShellExecute = true });
+
+            var text = await WinDbgLocator.WaitForLogAsync(log, TimeSpan.FromMinutes(4));
+            if (text is null)
+            {
+                Notify?.Invoke("WinDbg did not finish writing the analysis within 4 minutes (symbol downloads can be slow the first time). Leave WinDbg open and try Ask AI again once it has finished.");
+                return;
+            }
+
+            var summary = CrashAnalysis.Summarize(text);
+            var entryText = TextExporter.EntryToText(entry);
+            var service = AiChat;
+            var (url, _, trimmed) = CrashAnalysis.BuildUrl(service, entryText, summary);
+            var full = CrashAnalysis.BuildPrompt(entryText, summary);
+            try { System.Windows.Clipboard.SetText(full); } catch { /* clipboard busy */ }
+
+            OpenExternal(url, service.UrlTemplate.Replace("{0}", ""));
+            Notify?.Invoke($"Opening {service.Name} with the crash analysis." +
+                           (trimmed ? " The web address had to shorten the analysis, so the full prompt has been copied to the clipboard: paste it if the chat looks incomplete." : " The prompt has also been copied to the clipboard.") +
+                           (service.NeedsSignIn ? $"\n\n{service.Name} needs you to be signed in." : "") +
+                           $"\n\nFull WinDbg output: {log}");
+        }
+        catch (Exception ex)
+        {
+            Notify?.Invoke("Ask AI failed: " + ex.Message);
+        }
+        finally
+        {
+            IsAskingAi = false;
+            CommandManager.InvalidateRequerySuggested();
         }
     }
 

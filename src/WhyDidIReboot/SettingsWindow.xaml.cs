@@ -9,6 +9,8 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         DataContext = vm;
         SourceInitialized += (_, _) => ThemeManager.ApplyTitleBar(this);
+        // F9 opens Settings from the main window; pressing it again here closes them.
+        PreviewKeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.F9) { Close(); e.Handled = true; } };
     }
 
     /// <summary>Set when the user asked to open another installation's logs; the owner shows the folder picker after this dialog closes.</summary>

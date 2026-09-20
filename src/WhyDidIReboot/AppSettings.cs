@@ -29,6 +29,9 @@ public sealed class AppSettings
     /// <summary>The last folder chosen for another Windows installation's logs, to pre-select next time.</summary>
     public string? LastOfflineFolder { get; set; }
 
+    /// <summary>Which chat service "Ask AI" opens: ChatGPT, Microsoft Copilot, Perplexity or Claude.</summary>
+    public string AiChat { get; set; } = "ChatGPT";
+
     public static AppSettings Load()
     {
         try

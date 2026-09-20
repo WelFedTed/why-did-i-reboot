@@ -43,6 +43,41 @@ public static class WinDbgLocator
     /// <summary>Opens the dump and runs the standard crash analysis straight away.</summary>
     public static string Arguments(string dumpPath) => $"-z \"{dumpPath}\" -c \"!analyze -v\"";
 
+    /// <summary>Opens the dump, logs "!analyze -v" to <paramref name="logPath"/>, closes the log and ends the session.</summary>
+    public static string AnalyzeToLogArguments(string dumpPath, string logPath) =>
+        $"-z \"{dumpPath}\" -c \".logopen /t \\\"{logPath}\\\"; !analyze -v; .logclose; q\"";
+
+    /// <summary>
+    /// Waits for WinDbg to finish writing the log: the file exists, is no longer open for writing, and
+    /// has not grown for a couple of seconds. Returns the text, or null on timeout.
+    /// </summary>
+    public static async Task<string?> WaitForLogAsync(string logPath, TimeSpan timeout, CancellationToken ct = default)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        long lastSize = -1;
+        var stableSince = DateTime.UtcNow;
+        while (DateTime.UtcNow < deadline)
+        {
+            ct.ThrowIfCancellationRequested();
+            await Task.Delay(1000, ct).ConfigureAwait(false);
+            if (!File.Exists(logPath)) continue;
+            var size = new FileInfo(logPath).Length;
+            if (size != lastSize) { lastSize = size; stableSince = DateTime.UtcNow; continue; }
+            if (size == 0 || DateTime.UtcNow - stableSince < TimeSpan.FromSeconds(2)) continue;
+            try
+            {
+                using var f = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.None);
+                using var r = new StreamReader(f);
+                return await r.ReadToEndAsync(ct).ConfigureAwait(false);
+            }
+            catch (IOException)
+            {
+                // Still open by WinDbg; keep waiting.
+            }
+        }
+        return null;
+    }
+
     /// <summary>winget.exe if it is installed (App Installer), or null.</summary>
     public static string? FindWinget(Func<string, bool>? exists = null, Func<string, string?>? env = null)
     {

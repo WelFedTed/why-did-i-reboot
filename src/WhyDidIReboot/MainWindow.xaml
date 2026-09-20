@@ -194,6 +194,10 @@
                                     <Button Content="Debug in WinDbg" Style="{StaticResource LinkButton}" ToolTip="Open the crash dump in WinDbg and run !analyze -v"
                                             Visibility="{Binding DumpExists, Converter={StaticResource BoolToVis}}"
                                             Command="{Binding DataContext.OpenInWinDbgCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
+                                    <!-- Runs !analyze -v through WinDbg, then opens the chosen chat service with the output and this card as the prompt -->
+                                    <Button Content="Ask AI" Style="{StaticResource LinkButton}" ToolTip="Analyse the dump with WinDbg and ask a chat assistant what it means (service chosen in Settings)"
+                                            Visibility="{Binding DumpExists, Converter={StaticResource BoolToVis}}"
+                                            Command="{Binding DataContext.AskAiCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
                                 </StackPanel>
                             </StackPanel>
                         </Expander>
