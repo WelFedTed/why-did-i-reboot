@@ -63,33 +63,58 @@
                         <!-- Summary -->
                         <TextBlock Grid.Row="1" Text="{Binding Summary}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" Margin="50,8,0,0" LineHeight="19"/>
 
-                        <!-- Updates installed shortly before, with descriptions from Windows Update history and KB links -->
-                        <ItemsControl Grid.Row="2" ItemsSource="{Binding Updates}" Margin="50,6,0,0"
-                                      Visibility="{Binding HasUpdates, Converter={StaticResource BoolToVis}}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Margin="0,4,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Text="•" Foreground="{DynamicResource TextMuted}" Margin="0,0,8,0"/>
-                                        <StackPanel Grid.Column="1">
-                                            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}">
-                                                <Run Text="{Binding Title, Mode=OneWay}" FontWeight="SemiBold"/>
-                                                <Run Text="{Binding Category, Mode=OneWay}" Foreground="{DynamicResource TextMuted}" FontSize="11"/>
-                                            </TextBlock>
-                                            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="12"
-                                                       Visibility="{Binding Description, Converter={StaticResource NullToCollapsed}}"/>
-                                            <Button Style="{StaticResource LinkButton}" HorizontalAlignment="Left" Margin="0,2,0,0"
-                                                    Content="{Binding LinkLabel, Converter={StaticResource ExternalLink}}"
-                                                    Visibility="{Binding Url, Converter={StaticResource NullToCollapsed}}"
-                                                    Command="{Binding DataContext.OpenUrlCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding Url}"/>
+                        <!-- Updates installed shortly before, grouped (Windows / Security / Drivers / Apps / Other),
+                             with descriptions from Windows Update history and KB links -->
+                        <StackPanel Grid.Row="2" Margin="50,8,0,0" Visibility="{Binding HasUpdates, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="Installed updates" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" FontSize="12"/>
+                            <ItemsControl ItemsSource="{Binding UpdateGroups}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,6,0,0">
+                                            <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextMuted}"
+                                                       Typography.Capitals="AllSmallCaps" Margin="0,0,0,2"/>
+                                            <ItemsControl ItemsSource="{Binding Items}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,3,0,0">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="•" Foreground="{DynamicResource TextMuted}" Margin="4,0,8,0"/>
+                                                            <StackPanel Grid.Column="1">
+                                                                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}">
+                                                                    <Run Text="{Binding Title, Mode=OneWay}" FontWeight="SemiBold"/>
+                                                                    <Run Text="{Binding Category, Mode=OneWay}" Foreground="{DynamicResource TextMuted}" FontSize="11"/>
+                                                                    <Run Foreground="#DC2626" FontWeight="SemiBold" FontSize="11">
+                                                                        <Run.Style>
+                                                                            <Style TargetType="Run">
+                                                                                <Setter Property="Text" Value=""/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding Failed}" Value="True">
+                                                                                        <Setter Property="Text" Value="  failed"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Run.Style>
+                                                                    </Run>
+                                                                </TextBlock>
+                                                                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="12"
+                                                                           Visibility="{Binding Description, Converter={StaticResource NullToCollapsed}}"/>
+                                                                <Button Style="{StaticResource LinkButton}" HorizontalAlignment="Left" Margin="0,2,0,0"
+                                                                        Content="{Binding LinkLabel, Converter={StaticResource ExternalLink}}"
+                                                                        Visibility="{Binding Url, Converter={StaticResource NullToCollapsed}}"
+                                                                        Command="{Binding DataContext.OpenUrlCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding Url}"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
                                         </StackPanel>
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
 
                         <!-- Reference links, e.g. the Microsoft Learn page for a STOP code -->
                         <ItemsControl Grid.Row="3" ItemsSource="{Binding Links}" Margin="50,6,0,0"
@@ -194,12 +219,6 @@
                             <TextBlock Text="Export"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource ToolButton}" Click="EventViewer_Click" ToolTip="Open the Windows Event Viewer" AutomationProperties.Name="Event Viewer">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE9D9;" FontFamily="{StaticResource IconFont}" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="Event Viewer"/>
-                        </StackPanel>
-                    </Button>
                     <Button Style="{StaticResource ToolButton}" Click="Settings_Click" ToolTip="Settings" AutomationProperties.Name="Settings" Padding="8,6" Width="36">
                         <TextBlock Text="&#xE713;" FontFamily="{StaticResource IconFont}" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                     </Button>
@@ -237,8 +256,8 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="&#xE777;" FontFamily="{StaticResource IconFont}" Foreground="{DynamicResource Accent}" FontSize="15" Margin="0,0,10,0" VerticalAlignment="Center"/>
                     <TextBlock Grid.Column="1" Text="{Binding UpdateStatus}" Foreground="{DynamicResource BannerText}" VerticalAlignment="Center"/>
-                    <Button Grid.Column="2" Content="Open the download page" Style="{StaticResource LinkButton}" VerticalAlignment="Center"
-                            Command="{Binding OpenUrlCommand}" CommandParameter="{Binding UpdateUrl}"/>
+                    <Button Grid.Column="2" Content="{Binding UpdateButtonText}" Style="{StaticResource LinkButton}" VerticalAlignment="Center"
+                            Command="{Binding UpdateActionCommand}" ToolTip="Download, verify, install and relaunch"/>
                     <Button Grid.Column="3" Content="Dismiss" Style="{StaticResource LinkButton}" Margin="0" VerticalAlignment="Center" Command="{Binding DismissUpdateCommand}"/>
                 </Grid>
             </Border>
@@ -263,6 +282,7 @@
                 </ItemsControl>
                 <StackPanel Orientation="Horizontal" Margin="2,0,0,4">
                     <TextBlock Text="Show:" Foreground="{DynamicResource TextMuted}" FontSize="12" Margin="0,0,8,0"/>
+                    <Button Content="default" Style="{StaticResource LinkButton}" Command="{Binding DefaultCommand}" ToolTip="Everything except sleep / wake"/>
                     <Button Content="everything" Style="{StaticResource LinkButton}" Command="{Binding AllOnCommand}"/>
                     <Button Content="reboots only" Style="{StaticResource LinkButton}" Command="{Binding RebootsOnlyCommand}"/>
                     <Button Content="problems only" Style="{StaticResource LinkButton}" Command="{Binding ProblemsOnlyCommand}"/>

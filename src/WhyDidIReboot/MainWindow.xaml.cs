@@ -91,15 +91,4 @@ public partial class MainWindow : Window
         if (dialog.BrowseRequested) BrowseOfflineLogs();
     }
 
-    private void EventViewer_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo("eventvwr.msc") { UseShellExecute = true });
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(this, ex.Message, "Could not open Event Viewer", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
 }

@@ -29,9 +29,10 @@ Settings (the cog in the header) holds the theme picker, an update check against
 - **Filters**: toggle categories, quick presets (everything / reboots only / problems only / none), free-text search across titles, KB numbers, STOP codes and raw messages, and a date range from 7 days to the whole log.
 - **Export** what is shown as a self-contained `.html` report (same cards, collapsible details, follows the reader's light/dark preference, prints cleanly), a `.txt` report or `.csv`, or copy a single entry to the clipboard. Also works headless from the command line.
 - **Light and dark themes**: follows the Windows app theme by default, or pick Light / Dark in Settings (the cog in the header). The choice is remembered in `%LocalAppData%\WhyDidIReboot\settings.json`.
-- **Update details**: a Windows Update card lists each update installed shortly before the restart, with its short description and classification from Windows Update history and a link to the Microsoft Support (KB) article. Blue screen cards link to the Microsoft Learn page for the STOP code.
+- **Installed updates**: a card lists each update installed shortly before the restart, grouped into Windows, Security, Drivers, Apps and Other, with its short description and classification from Windows Update history, a *failed* marker where installation failed, and a link to the Microsoft Support (KB) article. Blue screen cards link to the Microsoft Learn page for the STOP code.
+- **Driver labels**: known driver file names are explained inline, e.g. `nvlddmkm.sys (NVIDIA kernel-mode display driver)`.
 - **Logs from another Windows installation**: Settings → *Open logs…* or **F9**, then pick a second drive, its Windows folder, or a copied `winevt\Logs` folder. Crash dump paths are checked on that drive. Also `--source <folder>` on the command line.
-- **Check for updates** from Settings, or automatically once at startup (toggle in Settings, on by default). Compares the running version with the latest GitHub Release and links to the download page. Nothing is sent beyond the request itself.
+- **Updates**: checks GitHub Releases once at startup (toggle in Settings, on by default) or on demand. When a newer version exists, *Update now* downloads the matching build, verifies the published SHA-256 digest, the executable header and its version, swaps it in beside the running copy and relaunches. Nothing is sent beyond the requests themselves.
 - Buttons to jump to Event Viewer or straight to a crash dump in Explorer.
 
 ## Build and run

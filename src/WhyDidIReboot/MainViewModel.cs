@@ -134,6 +134,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         RebootsOnlyCommand = new RelayCommand(_ => { foreach (var c in Categories) c.IsChecked = c.Category is not (RebootCategory.Sleep or RebootCategory.LiveKernelEvent); });
         ProblemsOnlyCommand = new RelayCommand(_ => { foreach (var c in Categories) c.IsChecked = c.Category is RebootCategory.BlueScreen or RebootCategory.Unexpected or RebootCategory.LiveKernelEvent or RebootCategory.Unknown; });
         NoneCommand = new RelayCommand(_ => { foreach (var c in Categories) c.IsChecked = false; });
+        DefaultCommand = new RelayCommand(_ => { foreach (var c in Categories) c.IsChecked = CategoryStyle.All[c.Category].DefaultOn; });
         CopyEntryCommand = new RelayCommand(p =>
         {
             if (p is RebootEntry e)
@@ -192,7 +193,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public string VersionText => $"Why Did I Reboot v{VersionString}";
     public string UpdateStatus { get => _updateStatus; private set { _updateStatus = value; OnPropertyChanged(); } }
     public string? UpdateUrl { get => _updateUrl; private set { _updateUrl = value; OnPropertyChanged(); } }
-    public bool HasUpdate { get => _hasUpdate; private set { _hasUpdate = value; OnPropertyChanged(); } }
+    public bool HasUpdate { get => _hasUpdate; private set { _hasUpdate = value; OnPropertyChanged(); OnPropertyChanged(nameof(UpdateButtonText)); } }
     public bool IsCheckingUpdates { get => _isCheckingUpdates; private set { _isCheckingUpdates = value; OnPropertyChanged(); } }
 
     public ICommand CheckForUpdatesCommand => _checkForUpdates ??= new RelayCommand(async _ => await CheckForUpdatesAsync(), _ => !IsCheckingUpdates);
@@ -226,6 +227,82 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ICommand DismissUpdateCommand => _dismissUpdate ??= new RelayCommand(_ => ShowUpdateBanner = false);
     private RelayCommand? _dismissUpdate;
 
+    private UpdateInfo? _latest;
+    private bool _isUpdating;
+
+    /// <summary>True while a release is being downloaded and swapped in.</summary>
+    public bool IsUpdating { get => _isUpdating; private set { _isUpdating = value; OnPropertyChanged(); OnPropertyChanged(nameof(UpdateButtonText)); } }
+
+    /// <summary>The Settings button reads "Check for updates" until one is found, then "Update now".</summary>
+    public string UpdateButtonText => IsUpdating ? "Updating…" : HasUpdate ? "Update now" : "Check for updates";
+
+    /// <summary>Checks when nothing is known yet; installs once a newer release has been found.</summary>
+    public ICommand UpdateActionCommand => _updateAction ??= new RelayCommand(
+        async _ => { if (HasUpdate) await UpdateNowAsync(); else await CheckForUpdatesAsync(); },
+        _ => !IsCheckingUpdates && !IsUpdating);
+    private RelayCommand? _updateAction;
+
+    /// <summary>Downloads the matching asset, verifies it, swaps it in beside the running exe, relaunches and exits.</summary>
+    public async Task UpdateNowAsync()
+    {
+        if (_latest is null || IsUpdating) return;
+        IsUpdating = true;
+        CommandManager.InvalidateRequerySuggested();
+        try
+        {
+            var exe = Environment.ProcessPath ?? throw new InvalidOperationException("Cannot determine the running executable.");
+            var appDir = System.IO.Path.GetDirectoryName(exe)!;
+            var frameworkDependent = UpdateInstaller.IsFrameworkDependent(exe);
+            var asset = UpdateInstaller.ChooseAsset(_latest, frameworkDependent)
+                ?? throw new InvalidOperationException($"Release {_latest.Tag} has no {(frameworkDependent ? UpdateInstaller.FrameworkDependentAsset : UpdateInstaller.SelfContainedAsset)} asset.");
+
+            var temp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "WhyDidIReboot-update");
+            System.IO.Directory.CreateDirectory(temp);
+            var download = System.IO.Path.Combine(temp, asset.Name);
+
+            var mb = asset.Size / 1048576.0;
+            var progress = new Progress<double>(p => UpdateStatus = $"Downloading v{_latest.Latest} ({mb:N0} MB)… {p:P0}");
+            await UpdateInstaller.DownloadAsync(Http.Value, asset, download, progress, CancellationToken.None);
+
+            UpdateStatus = "Verifying…";
+            Dictionary<string, string> staged;
+            if (frameworkDependent)
+            {
+                staged = await Task.Run(() => UpdateInstaller.StageZip(download, System.IO.Path.Combine(temp, "staged")));
+                UpdateInstaller.VerifyExecutable(staged[UpdateInstaller.ExeName], _latest.Latest);
+            }
+            else
+            {
+                UpdateInstaller.VerifyExecutable(download, _latest.Latest);
+                staged = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [UpdateInstaller.ExeName] = download };
+            }
+
+            UpdateStatus = "Installing…";
+            UpdateInstaller.Swap(appDir, staged);
+
+            UpdateStatus = $"Restarting as v{_latest.Latest}…";
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(System.IO.Path.Combine(appDir, UpdateInstaller.ExeName))
+            {
+                WorkingDirectory = appDir,
+                UseShellExecute = true,
+            });
+            System.Windows.Application.Current.Shutdown();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            UpdateStatus = "Windows would not let the app replace its own files here. Run it as administrator, or download the new version from the release page.";
+        }
+        catch (Exception ex)
+        {
+            UpdateStatus = "Update failed: " + (ex.InnerException?.Message ?? ex.Message) + " You can download it from the release page instead.";
+        }
+        finally
+        {
+            IsUpdating = false;
+            CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
     /// <param name="silent">Startup check: only surface a result when a newer release exists.</param>
     public async Task CheckForUpdatesAsync(bool silent = false)
     {
@@ -237,6 +314,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         try
         {
             var info = await UpdateChecker.CheckAsync(Http.Value, CurrentVersion);
+            _latest = info;
             if (info.IsNewer)
             {
                 UpdateUrl = info.Url;
@@ -294,6 +372,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ICommand RebootsOnlyCommand { get; }
     public ICommand ProblemsOnlyCommand { get; }
     public ICommand NoneCommand { get; }
+    public ICommand DefaultCommand { get; }
     public ICommand CopyEntryCommand { get; }
     public ICommand OpenDumpCommand { get; }
 

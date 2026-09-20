@@ -52,11 +52,14 @@ public sealed record EvidenceEvent(DateTime Time, string Log, int Id, string Pro
 public sealed record LinkItem(string Label, string Url);
 
 /// <summary>An update installed shortly before a reboot, enriched from Windows Update history when available.</summary>
-public sealed record UpdateItem(string Title, string? Kb, string? Description, string? Category, string? Url, bool Failed)
+public sealed record UpdateItem(string Title, string? Kb, string? Description, string? Category, string? Url, bool Failed, string Group = UpdateClassifier.Other)
 {
     /// <summary>"KB5094126 on Microsoft Support", or just "Microsoft Support" when no KB number is known.</summary>
     public string LinkLabel => Kb is null ? "Microsoft Support" : $"{Kb} on Microsoft Support";
 }
+
+/// <summary>Updates on a card bucketed under one heading, e.g. "Drivers".</summary>
+public sealed record UpdateGroup(string Name, IReadOnlyList<UpdateItem> Items);
 
 /// <summary>What Windows Update history knows about an update, keyed by KB number.</summary>
 public sealed record UpdateDetails(string Title, string? Description, string? Category, string? SupportUrl, DateTime? InstalledOn);
@@ -143,6 +146,13 @@ public sealed class RebootEntry
 
     public bool HasLinks => Links.Count > 0;
     public bool HasUpdates => Updates.Count > 0;
+
+    /// <summary>Updates bucketed by <see cref="UpdateClassifier"/> group, in display order, empty groups omitted.</summary>
+    public IReadOnlyList<UpdateGroup> UpdateGroups =>
+        UpdateClassifier.Order
+            .Select(g => new UpdateGroup(g, Updates.Where(u => u.Group == g).ToList()))
+            .Where(g => g.Items.Count > 0)
+            .ToList();
 
     /// <summary>True when this entry represents the machine actually going down and coming back.</summary>
     public bool IsReboot => Category is not (RebootCategory.LiveKernelEvent or RebootCategory.Sleep);

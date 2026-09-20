@@ -231,7 +231,7 @@ public class OfflineAndLinksTests
 
         var html = TextExporter.ToHtml(result, result.Entries, "all");
         Assert.Contains("Fixes &lt;things&gt; &amp; stuff.", html);
-        Assert.Contains("<a href=\"https://support.microsoft.com/help/5099999\" target=\"_blank\" rel=\"noopener\">KB5099999 ↗</a>", html);
+        Assert.Contains("<a href=\"https://support.microsoft.com/help/5099999\" target=\"_blank\" rel=\"noopener\">KB5099999 on Microsoft Support ↗</a>", html);
         Assert.Contains("<a href=\"https://learn.microsoft.com/x\" target=\"_blank\" rel=\"noopener\">STOP 0x9F on Microsoft Learn ↗</a>", html);
     }
 

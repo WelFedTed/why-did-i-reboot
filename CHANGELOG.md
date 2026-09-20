@@ -8,6 +8,18 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+### Added
+- **Update now.** When a newer release is found, the Settings button (and the startup banner) turns into *Update now*: one click downloads the matching asset (the self-contained exe, or the framework-dependent zip when `WhyDidIReboot.dll` sits beside the exe), verifies its size, the SHA-256 digest GitHub publishes, the PE header and the file version, swaps the files in beside the running copy, relaunches and cleans up on the next start. If the folder is not writable it explains and points at the release page.
+- **default** preset under *Show:*, left of *everything*: every category except Sleep / wake.
+- **Installed updates** heading on cards, with updates grouped into Windows, Security, Drivers, Apps and Other. Driver updates now get their descriptions from Windows Update history too (it was keyed by KB number only).
+- **Driver labels.** Known driver and system module names are followed by a plain-English label wherever they appear in summaries, details or log messages, e.g. `nvlddmkm.sys (NVIDIA kernel-mode display driver)`, `Netwtw04.sys (Intel wireless adapter driver)`.
+
+### Changed
+- Removed the *Event Viewer* button from the header.
+
+### Fixed
+- Failed updates are marked *failed* in red on cards in the app, as they already were in the HTML export.
+
 ## [0.5.0] - 2026-09-20
 
 ### Added

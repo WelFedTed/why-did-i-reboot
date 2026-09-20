@@ -90,7 +90,32 @@ public static class RebootAnalyzer
 
         entries.AddRange(LiveKernelEvents(events, options));
         entries.AddRange(SleepCycles(events, boots));
-        return entries;
+        return entries.Select(AnnotateDrivers).ToList();
+    }
+
+    /// <summary>Adds plain-English labels after driver file names wherever they appear on a card.</summary>
+    private static RebootEntry AnnotateDrivers(RebootEntry e)
+    {
+        var summary = DriverCatalog.Annotate(e.Summary);
+        var details = e.Details.Select(d => new KeyValuePair<string, string>(d.Key, DriverCatalog.Annotate(d.Value))).ToList();
+        var evidence = e.Evidence.Select(v => v with { Message = DriverCatalog.Annotate(v.Message) }).ToList();
+        if (summary == e.Summary && details.SequenceEqual(e.Details) && evidence.SequenceEqual(e.Evidence)) return e;
+        return new RebootEntry
+        {
+            Timestamp = e.Timestamp,
+            Category = e.Category,
+            Title = DriverCatalog.Annotate(e.Title),
+            Summary = summary,
+            ShutdownTime = e.ShutdownTime,
+            BootTime = e.BootTime,
+            Downtime = e.Downtime,
+            PreviousUptime = e.PreviousUptime,
+            DumpPath = e.DumpPath,
+            Details = details,
+            Evidence = evidence,
+            Links = e.Links,
+            Updates = e.Updates,
+        };
     }
 
     // ---------------------------------------------------------------- reboots
@@ -148,10 +173,13 @@ public static class RebootAnalyzer
             {
                 var u = g.First();
                 var kb = KnowledgeBase.KbNumber(u.Title);
-                options.UpdateDetails.TryGetValue(kb ?? "", out var info);
+                // History is keyed by KB number, or by exact title for updates without one (drivers).
+                if (!options.UpdateDetails.TryGetValue(kb ?? "", out var info))
+                    options.UpdateDetails.TryGetValue(u.Title.Trim(), out info);
                 // The KB article is the most specific page. History's SupportUrl is often just a host or a generic fwlink.
                 var url = KnowledgeBase.Url(kb) ?? SpecificUrl(info?.SupportUrl);
-                return new UpdateItem(u.Title, kb, Shorten(info?.Description), info?.Category, url, g.Any(x => x.Failed));
+                var group = UpdateClassifier.Group(u.Title, info?.Category);
+                return new UpdateItem(u.Title, kb, Shorten(info?.Description), info?.Category, url, g.Any(x => x.Failed), group);
             })
             .ToList();
 

@@ -20,7 +20,10 @@ public static class WindowsUpdateHistory
     private static Dictionary<string, UpdateDetails>? _cache;
     private static DateTime _cachedAt;
 
-    /// <summary>Returns history keyed by KB number. Empty (never null) if the API is unavailable.</summary>
+    /// <summary>
+    /// Returns history keyed by KB number ("KB5094126") and, for entries without one such as driver
+    /// updates, by the exact title. Empty (never null) if the API is unavailable.
+    /// </summary>
     public static IReadOnlyDictionary<string, UpdateDetails> Load(List<string>? warnings = null)
     {
         lock (Gate)
@@ -43,11 +46,11 @@ public static class WindowsUpdateHistory
                 {
                     dynamic entry = history.Item(i);
                     string title = entry.Title ?? "";
-                    var kb = KnowledgeBase.KbNumber(title);
-                    if (kb is null) continue;
+                    if (string.IsNullOrWhiteSpace(title)) continue;
+                    var key = KnowledgeBase.KbNumber(title) ?? title.Trim();
 
-                    // Only the newest successful install per KB matters; history is newest-first.
-                    if (result.ContainsKey(kb)) continue;
+                    // Only the newest entry per update matters; history is newest-first.
+                    if (result.ContainsKey(key)) continue;
 
                     string? description = null;
                     string? supportUrl = null;
@@ -70,7 +73,7 @@ public static class WindowsUpdateHistory
                     }
                     catch { }
 
-                    result[kb] = new UpdateDetails(title, Clean(description), category, supportUrl, date);
+                    result[key] = new UpdateDetails(title, Clean(description), category, supportUrl, date);
                 }
             }
         }

@@ -76,11 +76,35 @@
                                     Visibility="{Binding HasUpdate, Converter={StaticResource BoolToVis}}"
                                     Command="{Binding OpenUrlCommand}" CommandParameter="{Binding UpdateUrl}"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Style="{StaticResource ToolButton}" Margin="0" VerticalAlignment="Center"
-                                Command="{Binding CheckForUpdatesCommand}" AutomationProperties.Name="Check for updates">
+                        <!-- Reads "Check for updates" until a newer release is found, then "Update now": one click downloads,
+                             verifies, swaps the files in and relaunches. -->
+                        <Button Grid.Column="1" Margin="0" VerticalAlignment="Center"
+                                Command="{Binding UpdateActionCommand}" AutomationProperties.Name="{Binding UpdateButtonText}">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource ToolButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasUpdate}" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource Accent}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource AccentText}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE895;" FontFamily="{StaticResource IconFont}" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="Check for updates"/>
+                                <TextBlock FontFamily="{StaticResource IconFont}" Margin="0,0,6,0" VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="&#xE895;"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasUpdate}" Value="True">
+                                                    <Setter Property="Text" Value="&#xE896;"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock Text="{Binding UpdateButtonText}"/>
                             </StackPanel>
                         </Button>
                     </Grid>

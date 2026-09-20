@@ -61,6 +61,17 @@ public partial class App : Application
             return;
         }
 
+        // A previous in-place update leaves the old files renamed to *.old beside the exe; remove them now.
+        try
+        {
+            if (Environment.ProcessPath is { } exe)
+                UpdateInstaller.CleanupOldFiles(Path.GetDirectoryName(exe)!);
+        }
+        catch
+        {
+            // Best effort only.
+        }
+
         DispatcherUnhandledException += (_, ex) =>
         {
             MessageBox.Show(ex.Exception.ToString(), "Why Did I Reboot — unexpected error", MessageBoxButton.OK, MessageBoxImage.Error);

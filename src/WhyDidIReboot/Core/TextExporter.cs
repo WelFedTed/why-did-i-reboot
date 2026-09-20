@@ -32,12 +32,16 @@ public static class TextExporter
         sb.AppendLine($"    {e.Summary}");
         if (e.Updates.Count > 0)
         {
-            sb.AppendLine("    Updates installed shortly before:");
-            foreach (var u in e.Updates)
+            sb.AppendLine("    Installed updates:");
+            foreach (var g in e.UpdateGroups)
             {
-                sb.AppendLine($"      - {u.Title}{(u.Failed ? " (FAILED)" : "")}");
-                if (u.Description is not null) sb.AppendLine($"        {u.Description}");
-                if (u.Url is not null) sb.AppendLine($"        {u.Url}");
+                sb.AppendLine($"      {g.Name}:");
+                foreach (var u in g.Items)
+                {
+                    sb.AppendLine($"        - {u.Title}{(u.Failed ? " (FAILED)" : "")}");
+                    if (u.Description is not null) sb.AppendLine($"          {u.Description}");
+                    if (u.Url is not null) sb.AppendLine($"          {u.Url}");
+                }
             }
         }
         foreach (var d in e.Details) sb.AppendLine($"    {d.Key}: {d.Value}");
@@ -103,7 +107,9 @@ h2.day{font-size:13px;font-weight:600;color:var(--muted);margin:26px 0 10px}
 .when{font-size:12px;color:var(--muted);margin-top:2px}
 .badge{margin-left:auto;flex:none;font-size:11px;font-weight:600;padding:3px 8px;border-radius:10px;background:color-mix(in srgb,var(--col) 14%,transparent);color:var(--col)}
 .summary{color:var(--text2);margin:10px 0 0 48px}
-.updates{margin:8px 0 0 48px;padding-left:18px;font-size:13px}
+.uhead{margin:10px 0 0 48px;font-weight:600;color:var(--text2);font-size:13px}
+.ugroup{margin:6px 0 0 48px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.updates{margin:2px 0 0 48px;padding-left:18px;font-size:13px}
 .updates li{margin:4px 0}
 .updates .desc{color:var(--text2);font-size:12.5px}
 .updates .cat{color:var(--muted);font-size:11px;margin-left:6px}
@@ -165,17 +171,21 @@ table.kv{border-collapse:collapse;margin-top:8px}
             sb.Append($"<div class=\"summary\">{H(e.Summary)}</div>\n");
             if (e.Updates.Count > 0)
             {
-                sb.Append("<ul class=\"updates\">");
-                foreach (var u in e.Updates)
+                sb.Append("<div class=\"uhead\">Installed updates</div>\n");
+                foreach (var g in e.UpdateGroups)
                 {
-                    sb.Append("<li><b>").Append(H(u.Title)).Append("</b>");
-                    if (u.Failed) sb.Append(" <span class=\"fail\">failed</span>");
-                    if (u.Category is not null) sb.Append($" <span class=\"cat\">{H(u.Category)}</span>");
-                    if (u.Description is not null) sb.Append($"<div class=\"desc\">{H(u.Description)}</div>");
-                    if (u.Url is not null) sb.Append($"<a href=\"{H(u.Url)}\" target=\"_blank\" rel=\"noopener\">{H(u.Kb ?? "Microsoft Support")} ↗</a>");
-                    sb.Append("</li>");
+                    sb.Append($"<div class=\"ugroup\">{H(g.Name)}</div><ul class=\"updates\">");
+                    foreach (var u in g.Items)
+                    {
+                        sb.Append("<li><b>").Append(H(u.Title)).Append("</b>");
+                        if (u.Failed) sb.Append(" <span class=\"fail\">failed</span>");
+                        if (u.Category is not null) sb.Append($" <span class=\"cat\">{H(u.Category)}</span>");
+                        if (u.Description is not null) sb.Append($"<div class=\"desc\">{H(u.Description)}</div>");
+                        if (u.Url is not null) sb.Append($"<a href=\"{H(u.Url)}\" target=\"_blank\" rel=\"noopener\">{H(u.LinkLabel)} ↗</a>");
+                        sb.Append("</li>");
+                    }
+                    sb.Append("</ul>\n");
                 }
-                sb.Append("</ul>\n");
             }
             if (e.Links.Count > 0)
             {

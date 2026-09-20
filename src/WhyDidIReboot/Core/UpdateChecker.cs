@@ -3,7 +3,10 @@ using System.Text.Json;
 
 namespace WhyDidIReboot.Core;
 
-public sealed record UpdateInfo(Version Latest, string Tag, string Url, bool IsNewer);
+/// <summary>One downloadable file attached to a GitHub Release.</summary>
+public sealed record ReleaseAsset(string Name, string DownloadUrl, long Size, string? Sha256);
+
+public sealed record UpdateInfo(Version Latest, string Tag, string Url, bool IsNewer, IReadOnlyList<ReleaseAsset> Assets);
 
 /// <summary>Looks up the newest GitHub Release and compares it with the running version.</summary>
 public static class UpdateChecker
@@ -30,7 +33,26 @@ public static class UpdateChecker
         var tag = root.TryGetProperty("tag_name", out var t) ? t.GetString() ?? "" : "";
         var url = root.TryGetProperty("html_url", out var u) ? u.GetString() ?? ReleasesUrl : ReleasesUrl;
         var latest = ParseTag(tag) ?? throw new FormatException($"Release tag '{tag}' is not a version.");
-        return new UpdateInfo(latest, tag, url, latest > Normalise(current));
+
+        var assets = new List<ReleaseAsset>();
+        if (root.TryGetProperty("assets", out var arr) && arr.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var a in arr.EnumerateArray())
+            {
+                var name = a.TryGetProperty("name", out var n) ? n.GetString() : null;
+                var dl = a.TryGetProperty("browser_download_url", out var d) ? d.GetString() : null;
+                if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(dl)) continue;
+                var size = a.TryGetProperty("size", out var s) && s.TryGetInt64(out var sz) ? sz : 0;
+                // GitHub publishes "digest": "sha256:<hex>" for assets uploaded since early 2025.
+                string? sha = null;
+                if (a.TryGetProperty("digest", out var dg) && dg.GetString() is { } digest &&
+                    digest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
+                    sha = digest["sha256:".Length..].Trim().ToLowerInvariant();
+                assets.Add(new ReleaseAsset(name, dl, size, sha));
+            }
+        }
+
+        return new UpdateInfo(latest, tag, url, latest > Normalise(current), assets);
     }
 
     /// <summary>"v1.2.3", "1.2.3" or "v1.2.3-beta.1" → 1.2.3. Pre-release suffixes are ignored.</summary>
