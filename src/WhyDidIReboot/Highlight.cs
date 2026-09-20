@@ -15,13 +15,15 @@ public static class Highlight
     public static readonly DependencyProperty TextProperty = DependencyProperty.RegisterAttached(
         "Text", typeof(string), typeof(Highlight), new PropertyMetadata(null, OnChanged));
 
+    // Typed as an interface rather than string[]: the XAML compiler cannot bind array-typed
+    // attached properties inside control templates (MC4102).
     public static readonly DependencyProperty TermsProperty = DependencyProperty.RegisterAttached(
-        "Terms", typeof(string[]), typeof(Highlight), new PropertyMetadata(null, OnChanged));
+        "Terms", typeof(IEnumerable<string>), typeof(Highlight), new PropertyMetadata(null, OnChanged));
 
     public static string? GetText(DependencyObject d) => (string?)d.GetValue(TextProperty);
     public static void SetText(DependencyObject d, string? value) => d.SetValue(TextProperty, value);
-    public static string[]? GetTerms(DependencyObject d) => (string[]?)d.GetValue(TermsProperty);
-    public static void SetTerms(DependencyObject d, string[]? value) => d.SetValue(TermsProperty, value);
+    public static IEnumerable<string>? GetTerms(DependencyObject d) => (IEnumerable<string>?)d.GetValue(TermsProperty);
+    public static void SetTerms(DependencyObject d, IEnumerable<string>? value) => d.SetValue(TermsProperty, value);
 
     private static void OnChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -54,7 +56,7 @@ public static class Highlight
     }
 
     /// <summary>Case-insensitive match ranges for all terms, merged so overlaps become one highlight.</summary>
-    public static List<(int Start, int Length)> Ranges(string text, string[]? terms)
+    public static List<(int Start, int Length)> Ranges(string text, IEnumerable<string>? terms)
     {
         var hits = new List<(int Start, int End)>();
         if (terms is null) return new();

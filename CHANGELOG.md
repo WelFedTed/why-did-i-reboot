@@ -8,6 +8,9 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+### Changed
+- The *Installed updates* and *Details and log records* labels are now searchable and highlighted like the rest of a card. A match on the label alone does not open the block.
+
 ## [0.6.0] - 2026-09-20
 
 ### Added

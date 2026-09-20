@@ -2,14 +2,18 @@ namespace WhyDidIReboot.Core;
 
 /// <summary>
 /// Everything on a card that a search can hit, tagged with the section it lives in so the UI can
-/// open the right expander. Static labels such as the "Installed updates" heading are deliberately
-/// not part of the index.
+/// open the right expander. The expander labels themselves are indexed too, under
+/// <see cref="Labels"/>, so they match and highlight without forcing the block open.
 /// </summary>
 public static class SearchIndex
 {
     public const string Head = "head";
     public const string Updates = "updates";
     public const string Details = "details";
+    public const string Labels = "labels";
+
+    public const string UpdatesLabel = "Installed updates";
+    public const string DetailsLabel = "Details and log records";
 
     /// <summary>Splits a query into distinct whitespace-separated terms; all must match for a card to show.</summary>
     public static string[] Terms(string? query) =>
@@ -26,6 +30,9 @@ public static class SearchIndex
         if (e.ShutdownTime is not null) yield return (Head, Format.When(e.ShutdownTime));
         if (e.BootTime is not null) yield return (Head, Format.When(e.BootTime));
         foreach (var l in e.Links) yield return (Head, l.Label);
+
+        if (e.Updates.Count > 0) yield return (Labels, UpdatesLabel);
+        yield return (Labels, DetailsLabel);
 
         foreach (var u in e.Updates)
         {

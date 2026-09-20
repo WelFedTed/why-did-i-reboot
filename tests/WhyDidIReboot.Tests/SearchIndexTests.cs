@@ -47,11 +47,25 @@ public class SearchIndexTests
     [InlineData("Microsoft Learn", true)]  // link label
     [InlineData("2026", true)]             // formatted timestamp (year only: month names vary by locale)
     [InlineData("User", true)]             // category label
-    [InlineData("Installed updates", false)]      // static UI heading is not content
-    [InlineData("Details and log records", false)]
+    [InlineData("Installed updates", true)]       // expander labels are searchable too
+    [InlineData("Details and log records", true)]
     [InlineData("nothing like this", false)]
-    public void Cards_match_any_content_but_not_static_labels(string query, bool expected) =>
+    public void Cards_match_any_content_including_expander_labels(string query, bool expected) =>
         Assert.Equal(expected, SearchIndex.Matches(Card, SearchIndex.Terms(query)));
+
+    [Fact]
+    public void Expander_labels_match_without_forcing_the_block_open()
+    {
+        var terms = SearchIndex.Terms("installed");
+        Assert.True(SearchIndex.Matches(Card, terms));
+        Assert.True(SearchIndex.SectionMatches(Card, terms, SearchIndex.Labels));
+        Assert.False(SearchIndex.SectionMatches(Card, terms, SearchIndex.Updates));
+
+        // A card without updates has no "Installed updates" label to match.
+        var bare = new RebootEntry { Timestamp = T0, Category = RebootCategory.Unknown, Title = "t", Summary = "s" };
+        Assert.False(SearchIndex.Matches(bare, terms));
+        Assert.True(SearchIndex.Matches(bare, SearchIndex.Terms("log records")));
+    }
 
     [Fact]
     public void All_terms_must_match_but_may_hit_different_fields()
@@ -81,18 +95,22 @@ public class SearchIndexTests
     }
 
     [Fact]
-    public void Plural_of_a_word_only_matches_when_content_contains_it()
+    public void Any_card_with_an_updates_block_matches_updates_through_its_label()
     {
-        // "update" is in the update title and description; "updates" only in the classification "Security Updates".
         Assert.True(SearchIndex.Matches(Card, SearchIndex.Terms("update")));
         Assert.True(SearchIndex.Matches(Card, SearchIndex.Terms("updates")));
 
-        var noClassification = new RebootEntry
+        // Only the "Installed updates" label contains "updates" here, so it matches but does not open the block.
+        var onlyLabel = new RebootEntry
         {
             Timestamp = T0, Category = RebootCategory.UserInitiated, Title = "t", Summary = "s",
-            Updates = new() { new("Something (KB1)", "KB1", "Install this update.", null, null, false, UpdateClassifier.Other) },
+            Updates = new() { new("Something (KB1)", "KB1", "Install this fix.", null, null, false, UpdateClassifier.Other) },
         };
-        Assert.True(SearchIndex.Matches(noClassification, SearchIndex.Terms("update")));
-        Assert.False(SearchIndex.Matches(noClassification, SearchIndex.Terms("updates")));
+        Assert.True(SearchIndex.Matches(onlyLabel, SearchIndex.Terms("updates")));
+        Assert.False(SearchIndex.SectionMatches(onlyLabel, SearchIndex.Terms("updates"), SearchIndex.Updates));
+
+        // No updates block at all: nothing contains "updates".
+        var bare = new RebootEntry { Timestamp = T0, Category = RebootCategory.Unknown, Title = "t", Summary = "s" };
+        Assert.False(SearchIndex.Matches(bare, SearchIndex.Terms("updates")));
     }
 }
