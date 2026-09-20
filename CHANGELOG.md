@@ -8,6 +8,9 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+### Changed
+- GitHub Releases are now titled with just the version tag (for example `v0.3.0`), and the assets are named `WhyDidIReboot.exe` and `WhyDidIReboot-framework-dependent.zip` without a version in the file name. Existing releases were renamed to match.
+
 ## [0.3.0] - 2026-09-20
 
 ### Added

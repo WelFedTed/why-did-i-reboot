@@ -97,8 +97,8 @@ jobs:
           $body = ($body -join "`n").Trim()
           if (-not $body) { throw "The '## [$version]' section in CHANGELOG.md is empty." }
           $body += "`n`n## Downloads`n" +
-                   "- **WhyDidIReboot-$version-win-x64.exe** runs on any 64-bit Windows 10/11 PC with nothing installed.`n" +
-                   "- **WhyDidIReboot-$version-framework-dependent.zip** is much smaller but needs the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)."
+                   "- **WhyDidIReboot.exe** runs on any 64-bit Windows 10/11 PC with nothing installed.`n" +
+                   "- **WhyDidIReboot-framework-dependent.zip** is much smaller but needs the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)."
           Set-Content -Path release-notes.md -Value $body
           Write-Host $body
 
@@ -117,10 +117,9 @@ jobs:
       - name: Package assets
         shell: pwsh
         run: |
-          $version = '${{ github.ref_name }}'.TrimStart('v')
           New-Item -ItemType Directory -Force out | Out-Null
-          Copy-Item assets/self-contained/WhyDidIReboot.exe "out/WhyDidIReboot-$version-win-x64.exe"
-          Compress-Archive -Path assets/framework-dependent/* -DestinationPath "out/WhyDidIReboot-$version-framework-dependent.zip"
+          Copy-Item assets/self-contained/WhyDidIReboot.exe out/WhyDidIReboot.exe
+          Compress-Archive -Path assets/framework-dependent/* -DestinationPath out/WhyDidIReboot-framework-dependent.zip
           Get-ChildItem out
 
       - name: Create GitHub Release
@@ -129,7 +128,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = '${{ github.ref_name }}'
-          $args = @('release', 'create', $tag, '--repo', '${{ github.repository }}', '--title', "Why Did I Reboot $tag", '--notes-file', 'release-notes.md')
+          $args = @('release', 'create', $tag, '--repo', '${{ github.repository }}', '--title', $tag, '--notes-file', 'release-notes.md')
           if ($tag -match '-') { $args += '--prerelease' }   # SemVer pre-release, e.g. v0.2.0-beta.1
           $args += Get-ChildItem out | ForEach-Object { $_.FullName }
           gh @args
