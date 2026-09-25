@@ -192,7 +192,7 @@ table.kv{border-collapse:collapse;margin-top:8px}
                         if (u.Failed) sb.Append(" <span class=\"fail\">failed</span>");
                         if (u.Category is not null) sb.Append($" <span class=\"cat\">{H(u.Category)}</span>");
                         if (u.Description is not null) sb.Append($"<div class=\"desc\">{H(u.Description)}</div>");
-                        if (u.Url is not null) sb.Append($"<a href=\"{H(u.Url)}\" target=\"_blank\" rel=\"noopener\">{H(u.LinkLabel)} ↗</a>");
+                        if (IsWebUrl(u.Url)) sb.Append($"<a href=\"{H(u.Url!)}\" target=\"_blank\" rel=\"noopener\">{H(u.LinkLabel)} ↗</a>");
                         sb.Append("</li>");
                     }
                     sb.Append("</ul>\n");
@@ -202,7 +202,7 @@ table.kv{border-collapse:collapse;margin-top:8px}
             if (e.Links.Count > 0)
             {
                 sb.Append("<div class=\"links\">");
-                foreach (var l in e.Links) sb.Append($"<a href=\"{H(l.Url)}\" target=\"_blank\" rel=\"noopener\">{H(l.Label)} ↗</a>");
+                foreach (var l in e.Links.Where(l => IsWebUrl(l.Url))) sb.Append($"<a href=\"{H(l.Url)}\" target=\"_blank\" rel=\"noopener\">{H(l.Label)} ↗</a>");
                 sb.Append("</div>\n");
             }
             sb.Append("<details><summary>Details and log records</summary>\n<table class=\"kv\">");
@@ -292,6 +292,13 @@ apply();
 """;
 
     private static string H(string s) => System.Net.WebUtility.HtmlEncode(s);
+
+    /// <summary>
+    /// Only http(s) links become hrefs. Cards re-opened from a CSV carry whatever URLs the file held,
+    /// and a "javascript:" one would run when clicked in the exported report.
+    /// </summary>
+    private static bool IsWebUrl(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https";
 
     private static string Csv(string s) => "\"" + s.Replace("\"", "\"\"") + "\"";
 

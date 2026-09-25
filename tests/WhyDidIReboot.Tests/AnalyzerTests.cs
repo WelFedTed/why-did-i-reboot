@@ -328,4 +328,40 @@ public class AnalyzerTests
         Assert.Equal(times.OrderBy(t => t), times);
         Assert.Equal(e.Evidence.Count, e.Evidence.Distinct().Count());
     }
+
+    [Fact]
+    public void Unexpected_shutdown_time_is_read_through_the_left_to_right_marks_windows_puts_in_the_date()
+    {
+        var crashedAt = T0.AddHours(2);
+        var boot = crashedAt.AddMinutes(3);
+        var e6008 = Ev(boot.AddSeconds(20), EventLogSource.EventLogSvc, 6008, new()
+        {
+            ["param1"] = crashedAt.ToString("HH:mm:ss"),
+            ["param2"] = "\u200E" + crashedAt.ToString("yyyy") + "\u200E-\u200E" + crashedAt.ToString("MM") + "\u200E-\u200E" + crashedAt.ToString("dd"),
+        });
+        var events = new List<RawEvent> { Boot(T0), Boot(boot), e6008 };
+
+        var e = Reboots(events).Last();
+        Assert.Equal(RebootCategory.Unexpected, e.Category);
+        Assert.Equal(crashedAt, e.ShutdownTime);
+        Assert.Equal(TimeSpan.FromMinutes(3), e.Downtime);
+    }
+
+    [Fact]
+    public void Events_out_of_order_give_the_same_cards_as_sorted_ones()
+    {
+        var shutdown = T0.AddHours(2);
+        var events = new List<RawEvent> { Boot(T0), Sleep(T0.AddMinutes(30)), Wake(T0.AddMinutes(50), T0.AddMinutes(30), T0.AddMinutes(49), "Power button") };
+        events.AddRange(CleanRestart(shutdown, Requested(shutdown.AddSeconds(-6), Explorer, Bucky, "Other (Unplanned)")));
+        events.AddRange(CleanRestart(shutdown.AddHours(5), null));
+
+        static string Shape(IEnumerable<RebootEntry> entries) =>
+            string.Join("\n", entries.OrderBy(e => e.Timestamp).Select(e => $"{e.Timestamp:O} {e.Category} {e.Title} {e.Evidence.Count}"));
+
+        var sorted = RebootAnalyzer.Build(events.OrderBy(e => e.Time).ThenBy(e => e.RecordId).ToList());
+        var shuffled = RebootAnalyzer.Build(Enumerable.Reverse(events).ToList());
+
+        Assert.Equal(4, sorted.Count);
+        Assert.Equal(Shape(sorted), Shape(shuffled));
+    }
 }

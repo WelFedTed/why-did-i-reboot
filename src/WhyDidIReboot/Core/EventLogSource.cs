@@ -115,15 +115,11 @@ public static class EventLogSource
                 using (record)
                 {
                     read++;
-                    var raw = ToRaw(record, log);
-                    if (raw is null) continue;
-                    if (!Wanted.Contains((raw.Provider, raw.Id))) continue;
-                    if (werFilter)
-                    {
-                        var name = raw.Get("EventName");
-                        if (name is not ("LiveKernelEvent" or "BlueScreen")) continue;
-                    }
-                    sink.Add(raw);
+                    // The System query matches on event id alone, and ids like 1 and 1001 are shared by many
+                    // providers. Drop those before the costly XML parse and message formatting.
+                    if (!Wanted.Contains((record.ProviderName ?? "", record.Id))) continue;
+                    var raw = ToRaw(record, log, werFilter);
+                    if (raw is not null) sink.Add(raw);
                 }
             }
         }
@@ -142,7 +138,8 @@ public static class EventLogSource
         return read;
     }
 
-    private static RawEvent? ToRaw(EventRecord record, string log)
+    /// <param name="werFilter">Keep only WER reports for live kernel events and blue screens (checked before formatting the message).</param>
+    private static RawEvent? ToRaw(EventRecord record, string log, bool werFilter = false)
     {
         if (record.TimeCreated is not DateTime time) return null;
 
@@ -169,6 +166,9 @@ public static class EventLogSource
             // Malformed XML is rare; fall back to the untyped property list.
             foreach (var p in record.Properties) ordered.Add(p.Value?.ToString() ?? "");
         }
+
+        if (werFilter && (!data.TryGetValue("EventName", out var eventName) || eventName is not ("LiveKernelEvent" or "BlueScreen")))
+            return null;
 
         string? message = null;
         try { message = record.FormatDescription(); } catch { /* provider metadata missing */ }
@@ -220,6 +220,6 @@ public static class EventLogSource
         public bool Equals((string, int) x, (string, int) y) =>
             x.Item2 == y.Item2 && string.Equals(x.Item1, y.Item1, StringComparison.OrdinalIgnoreCase);
         public int GetHashCode((string, int) obj) =>
-            HashCode.Combine(obj.Item1.ToLowerInvariant(), obj.Item2);
+            HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Item1), obj.Item2);
     }
 }

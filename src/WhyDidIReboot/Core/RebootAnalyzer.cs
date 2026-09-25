@@ -86,6 +86,9 @@ public static class RebootAnalyzer
     {
         var entries = new List<RebootEntry>();
 
+        // Stable sort, so callers' tie order (record id) survives; the slicing below relies on ascending time.
+        events = events.OrderBy(e => e.Time).ToList();
+
         // A boot is a Kernel-General 12. Fall back to EventLog 6005 when 12 is missing (older logs).
         var boots = events.Where(e => e.Is(EventLogSource.KernelGeneral, 12)).ToList();
         foreach (var e in events.Where(e => e.Is(EventLogSource.EventLogSvc, 6005)))
@@ -99,10 +102,13 @@ public static class RebootAnalyzer
         {
             var boot = boots[i];
             var prevBoot = i > 0 ? boots[i - 1] : null;
-            var nextBootTime = i + 1 < boots.Count ? boots[i + 1].Time : DateTime.MaxValue;
 
-            var before = events.Where(e => e.Time < boot.Time && (prevBoot is null || e.Time >= prevBoot.Time)).ToList();
-            var after = events.Where(e => e.Time >= boot.Time && e.Time < nextBootTime).ToList();
+            // Each boot owns [previous boot, this boot) before it and [this boot, next boot) after it.
+            var start = prevBoot is null ? 0 : FirstAtOrAfter(events, prevBoot.Time);
+            var bootIndex = FirstAtOrAfter(events, boot.Time);
+            var end = i + 1 < boots.Count ? FirstAtOrAfter(events, boots[i + 1].Time) : events.Count;
+            var before = events.GetRange(start, bootIndex - start);
+            var after = events.GetRange(bootIndex, end - bootIndex);
 
             entries.Add(DescribeBoot(boot, prevBoot, before, after, events, options));
         }
@@ -112,18 +118,46 @@ public static class RebootAnalyzer
         return entries.Select(AnnotateDrivers).ToList();
     }
 
+    /// <summary>Index of the first event at or after <paramref name="time"/> in a list sorted by time.</summary>
+    private static int FirstAtOrAfter(List<RawEvent> sorted, DateTime time)
+    {
+        int lo = 0, hi = sorted.Count;
+        while (lo < hi)
+        {
+            var mid = lo + (hi - lo) / 2;
+            if (sorted[mid].Time < time) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo;
+    }
+
+    /// <summary>Index of the first event strictly after <paramref name="time"/> in a list sorted by time.</summary>
+    private static int FirstAfter(List<RawEvent> sorted, DateTime time)
+    {
+        int lo = 0, hi = sorted.Count;
+        while (lo < hi)
+        {
+            var mid = lo + (hi - lo) / 2;
+            if (sorted[mid].Time <= time) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo;
+    }
+
     /// <summary>Adds plain-English labels after driver file names wherever they appear on a card.</summary>
     private static RebootEntry AnnotateDrivers(RebootEntry e)
     {
+        var title = DriverCatalog.Annotate(e.Title);
         var summary = DriverCatalog.Annotate(e.Summary);
         var details = e.Details.Select(d => new KeyValuePair<string, string>(d.Key, DriverCatalog.Annotate(d.Value))).ToList();
         var evidence = e.Evidence.Select(v => v with { Message = DriverCatalog.Annotate(v.Message) }).ToList();
-        if (summary == e.Summary && details.SequenceEqual(e.Details) && evidence.SequenceEqual(e.Evidence)) return e;
+        var detailsChanged = details.Where((d, i) => d.Value != e.Details[i].Value).Any();
+        if (title == e.Title && summary == e.Summary && !detailsChanged && evidence.SequenceEqual(e.Evidence)) return e;
         return new RebootEntry
         {
             Timestamp = e.Timestamp,
             Category = e.Category,
-            Title = DriverCatalog.Annotate(e.Title),
+            Title = title,
             Summary = summary,
             ShutdownTime = e.ShutdownTime,
             BootTime = e.BootTime,
@@ -510,9 +544,13 @@ public static class RebootAnalyzer
 
         foreach (var sleep in sleeps)
         {
-            var nextBoot = boots.FirstOrDefault(b => b.Time > sleep.Time)?.Time ?? DateTime.MaxValue;
-            var nextSleep = sleeps.FirstOrDefault(s => s.Time > sleep.Time)?.Time ?? DateTime.MaxValue;
-            var wake = wakes.FirstOrDefault(w => w.Time > sleep.Time && w.Time < nextBoot && w.Time < nextSleep);
+            // All three lists are in time order, so each "first one after" is a binary search rather than a scan.
+            var b = FirstAfter(boots, sleep.Time);
+            var nextBoot = b < boots.Count ? boots[b].Time : DateTime.MaxValue;
+            var s = FirstAfter(sleeps, sleep.Time);
+            var nextSleep = s < sleeps.Count ? sleeps[s].Time : DateTime.MaxValue;
+            var w = FirstAfter(wakes, sleep.Time);
+            var wake = w < wakes.Count && wakes[w].Time < nextBoot && wakes[w].Time < nextSleep ? wakes[w] : null;
 
             var reason = SleepReason(sleep.Get("Reason", 1));
             var details = new List<KeyValuePair<string, string>>
@@ -593,10 +631,10 @@ public static class RebootAnalyzer
     private static DateTime? ParseUnexpectedShutdownTime(RawEvent e6008)
     {
         // "The previous system shutdown at %1 on %2 was unexpected." Both parts are localized strings.
-        var time = e6008.Get("param1", 0);
-        var date = e6008.Get("param2", 1);
-        if (DateTime.TryParse($"{date} {time}", CultureInfo.CurrentCulture, DateTimeStyles.AssumeLocal, out var dt)) return dt;
-        if (DateTime.TryParse($"{date} {time}", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out dt)) return dt;
+        // Windows wraps the date parts in left-to-right marks (U+200E), which DateTime.TryParse rejects.
+        var text = new string($"{e6008.Get("param2", 1)} {e6008.Get("param1", 0)}".Where(c => c is not ('\u200E' or '\u200F')).ToArray());
+        if (DateTime.TryParse(text, CultureInfo.CurrentCulture, DateTimeStyles.AssumeLocal, out var dt)) return dt;
+        if (DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out dt)) return dt;
         return null;
     }
 

@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace WhyDidIReboot.Core;
 
 /// <summary>
@@ -58,18 +60,25 @@ public static class SearchIndex
         }
     }
 
+    // Every keystroke re-filters every card and re-checks each card's expanders, so build a card's
+    // fields (dates formatted and all) once. Entries are not changed after they are built.
+    private static readonly ConditionalWeakTable<RebootEntry, (string Section, string Text)[]> Cache = new();
+
+    private static (string Section, string Text)[] CachedFields(RebootEntry e) =>
+        Cache.GetValue(e, x => Fields(x).ToArray());
+
     /// <summary>True when every term appears somewhere on the card (any section, case-insensitive).</summary>
     public static bool Matches(RebootEntry e, string[] terms)
     {
         if (terms.Length == 0) return true;
-        var fields = Fields(e).Select(f => f.Text).ToList();
-        return terms.All(t => fields.Any(f => f.Contains(t, StringComparison.OrdinalIgnoreCase)));
+        var fields = CachedFields(e);
+        return terms.All(t => fields.Any(f => f.Text.Contains(t, StringComparison.OrdinalIgnoreCase)));
     }
 
     /// <summary>True when any term appears in the given section, used to auto-expand collapsed blocks.</summary>
     public static bool SectionMatches(RebootEntry e, string[] terms, string section)
     {
         if (terms.Length == 0) return false;
-        return Fields(e).Any(f => f.Section == section && terms.Any(t => f.Text.Contains(t, StringComparison.OrdinalIgnoreCase)));
+        return CachedFields(e).Any(f => f.Section == section && terms.Any(t => f.Text.Contains(t, StringComparison.OrdinalIgnoreCase)));
     }
 }

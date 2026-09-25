@@ -27,7 +27,9 @@ public static class ThemeManager
         Apply();
         SystemEvents.UserPreferenceChanged += (_, e) =>
         {
-            if (e.Category == UserPreferenceCategory.General && Mode == ThemeMode.System)
+            // General fires for many unrelated setting changes; only re-theme (which rebuilds every card)
+            // when the Windows light/dark choice actually flipped.
+            if (e.Category == UserPreferenceCategory.General && Mode == ThemeMode.System && SystemIsDark() != IsDark)
                 Application.Current?.Dispatcher.Invoke(Apply);
         };
     }

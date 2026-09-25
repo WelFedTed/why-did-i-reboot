@@ -186,8 +186,19 @@ public sealed class RebootEntry
     public bool HasLinks => Links.Count > 0;
     public bool HasUpdates => Updates.Count > 0;
 
+    private string? _searchQuery;
+    private bool _searchQueryBuilt;
+
     /// <summary>Web search text for a crash (bugcheck name, code, driver names), or null for cards without a code.</summary>
-    public string? SearchQuery => WebSearch.QueryFor(this);
+    /// <remarks>Built on first use: each card binds it several times and it regex-scans the whole card.</remarks>
+    public string? SearchQuery
+    {
+        get
+        {
+            if (!_searchQueryBuilt) { _searchQuery = WebSearch.QueryFor(this); _searchQueryBuilt = true; }
+            return _searchQuery;
+        }
+    }
     public bool HasSearchQuery => SearchQuery is not null;
 
     /// <summary>Updates bucketed by <see cref="UpdateClassifier"/> group, in display order, empty groups omitted.</summary>

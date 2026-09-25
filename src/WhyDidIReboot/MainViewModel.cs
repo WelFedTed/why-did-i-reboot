@@ -112,7 +112,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         Categories = new ObservableCollection<CategoryFilter>(
             CategoryStyle.All.Keys.Select(c => new CategoryFilter(c)));
-        foreach (var c in Categories) c.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(CategoryFilter.IsChecked)) View.Refresh(); UpdateShown(); };
+        foreach (var c in Categories)
+            c.PropertyChanged += (_, e) =>
+            {
+                // Count changes too (once per chip on every load); only a toggle needs the view re-filtered.
+                if (e.PropertyName != nameof(CategoryFilter.IsChecked) || _settingFilters) return;
+                View.Refresh();
+                UpdateShown();
+            };
 
         Ranges = new ObservableCollection<RangeOption>
         {
@@ -135,11 +142,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ThemeManager.Changed += OnThemeChanged;
 
         RefreshCommand = new RelayCommand(async _ => await RefreshAsync(), _ => !IsBusy);
-        AllOnCommand = new RelayCommand(_ => { foreach (var c in Categories) c.IsChecked = true; });
-        RebootsOnlyCommand = new RelayCommand(_ => { foreach (var c in Categories) c.IsChecked = c.Category is not (RebootCategory.Sleep or RebootCategory.LiveKernelEvent); });
-        ProblemsOnlyCommand = new RelayCommand(_ => { foreach (var c in Categories) c.IsChecked = c.Category is RebootCategory.BlueScreen or RebootCategory.Unexpected or RebootCategory.LiveKernelEvent or RebootCategory.Unknown; });
-        NoneCommand = new RelayCommand(_ => { foreach (var c in Categories) c.IsChecked = false; });
-        DefaultCommand = new RelayCommand(_ => { foreach (var c in Categories) c.IsChecked = CategoryStyle.All[c.Category].DefaultOn; });
+        AllOnCommand = new RelayCommand(_ => SetFilters(c => true));
+        RebootsOnlyCommand = new RelayCommand(_ => SetFilters(c => c is not (RebootCategory.Sleep or RebootCategory.LiveKernelEvent)));
+        ProblemsOnlyCommand = new RelayCommand(_ => SetFilters(c => c is RebootCategory.BlueScreen or RebootCategory.Unexpected or RebootCategory.LiveKernelEvent or RebootCategory.Unknown));
+        NoneCommand = new RelayCommand(_ => SetFilters(c => false));
+        DefaultCommand = new RelayCommand(_ => SetFilters(c => CategoryStyle.All[c].DefaultOn));
         CopyEntryCommand = new RelayCommand(p =>
         {
             if (p is RebootEntry e)
@@ -147,9 +154,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
         });
         OpenDumpCommand = new RelayCommand(p =>
         {
-            if (p is not RebootEntry { DumpPath: { Length: > 0 } path }) return;
+            if (p is not RebootEntry { DumpPath: { Length: > 0 } recorded }) return;
             try
             {
+                // For another installation's logs the recorded C:\ path lives on that drive.
+                var path = _location.MapPath(recorded);
                 var psi = System.IO.File.Exists(path)
                     ? new System.Diagnostics.ProcessStartInfo("explorer.exe", $"/select,\"{path}\"")
                     : new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{System.IO.Path.GetDirectoryName(path)}\"");
@@ -618,6 +627,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
                     {
                         _range = previous;                     // cancelled: back to what was selected before
                         OnPropertyChanged(nameof(Range));
+                        // A load that finished while the picker was open may have been for an older choice.
+                        if (!ReferenceEquals(previous, _loadedRange)) _ = RefreshAsync();
                         return;
                     }
                     var custom = new RangeOption(chosen.Label, null, chosen);
@@ -683,17 +694,45 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public async Task RefreshAsync()
     {
-        if (IsBusy) return;
+        if (IsBusy) return;   // the running load picks up a range or source change when it finishes
         IsBusy = true;
+        try
+        {
+            RangeOption option;
+            LogLocation location;
+            do
+            {
+                option = _range;
+                location = _location;
+                await LoadAsync(option.Range, location);
+                _loadedRange = option;
+            }
+            // The range or source changed while that load was running (its RefreshAsync call was
+            // ignored above), so what is on screen is stale: read again for the new selection.
+            // Not while the custom-range picker is open; it refreshes itself once a window is chosen.
+            while (!_range.IsPicker && (!ReferenceEquals(option, _range) || !ReferenceEquals(location, _location)));
+        }
+        finally
+        {
+            IsBusy = false;
+            UpdateShown();
+            CommandManager.InvalidateRequerySuggested();
+        }
+    }
+
+    private async Task LoadAsync(TimeRange range, LogLocation location)
+    {
         StatusText = "Reading the Windows event logs…";
-        var range = _range.Range;
-        var location = _location;
         try
         {
             var result = await Task.Run(() => RebootAnalyzer.Analyze(range, location));
             _last = result;
-            _entries.Clear();
-            foreach (var e in result.Entries) _entries.Add(e);
+            // One filter-and-group pass when the batch is in, rather than one per added card.
+            using (View.DeferRefresh())
+            {
+                _entries.Clear();
+                foreach (var e in result.Entries) _entries.Add(e);
+            }
             foreach (var c in Categories) c.Count = result.Entries.Count(e => e.Category == c.Category);
 
             if (location.IsCsv)
@@ -721,13 +760,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
             WarningText = "Could not read the event log: " + ex.Message;
             StatusText = "Failed";
         }
-        finally
-        {
-            IsBusy = false;
-            View.Refresh();
-            UpdateShown();
-            CommandManager.InvalidateRequerySuggested();
-        }
+    }
+
+    private bool _settingFilters;
+    private RangeOption? _loadedRange;
+
+    /// <summary>Sets every chip at once and re-filters once, instead of once per chip.</summary>
+    private void SetFilters(Func<RebootCategory, bool> on)
+    {
+        _settingFilters = true;
+        try { foreach (var c in Categories) c.IsChecked = on(c.Category); }
+        finally { _settingFilters = false; }
+        View.Refresh();
+        UpdateShown();
     }
 
     private void OnThemeChanged()

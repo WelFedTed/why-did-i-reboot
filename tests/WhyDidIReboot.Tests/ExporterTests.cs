@@ -135,6 +135,27 @@ public class ExporterTests
     }
 
     [Fact]
+    public void Html_report_links_only_web_addresses()
+    {
+        // A CSV report can be edited by hand and re-opened, so its links are not trusted to be web pages.
+        var entry = new RebootEntry
+        {
+            Timestamp = new DateTime(2026, 9, 13, 15, 30, 22),
+            Category = RebootCategory.WindowsUpdate,
+            Title = "t",
+            Summary = "s",
+            Links = new() { new("Good", "https://learn.microsoft.com/x"), new("Bad", "javascript:alert(1)") },
+            Updates = new() { new("Evil update", null, null, null, "javascript:alert(2)", false) },
+        };
+        var result = new AnalysisResult { Entries = new() { entry }, CurrentBootTime = new DateTime(2026, 9, 13) };
+
+        var html = TextExporter.ToHtml(result, result.Entries, "everything");
+
+        Assert.Contains("href=\"https://learn.microsoft.com/x\"", html);
+        Assert.DoesNotContain("javascript:alert", html);
+    }
+
+    [Fact]
     public void Html_report_with_no_entries_says_so()
     {
         var html = TextExporter.ToHtml(Result, Array.Empty<RebootEntry>(), "last 7 days");
