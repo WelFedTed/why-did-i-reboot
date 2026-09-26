@@ -178,9 +178,31 @@ public class CrashAnalysisTests
     [Fact]
     public void Log_file_name_comes_from_the_dump_and_is_safe_for_the_command_line()
     {
-        Assert.Equal("071226-7000-01.analyze.txt", WinDbgLocator.LogFileName(@"C:\Windows\Minidump\071226-7000-01.dmp"));
-        Assert.Equal("my_dump_file.analyze.txt", WinDbgLocator.LogFileName(@"D:\Old PC\my dump;file.dmp"));
-        Assert.Equal("dump.analyze.txt", WinDbgLocator.LogFileName(@"C:\.dmp"));
+        var t = new DateTime(2026, 7, 12, 10, 28, 55, DateTimeKind.Utc);
+        Assert.Matches(@"^071226-7000-01\.[0-9a-f]{8}\.analyze\.txt$", WinDbgLocator.LogFileName(@"C:\Windows\Minidump\071226-7000-01.dmp", 1000, t));
+        Assert.Matches(@"^my_dump_file\.[0-9a-f]{8}\.analyze\.txt$", WinDbgLocator.LogFileName(@"D:\Old PC\my dump;file.dmp", 1000, t));
+        Assert.Matches(@"^dump\.[0-9a-f]{8}\.analyze\.txt$", WinDbgLocator.LogFileName(@"C:\.dmp", 1000, t));
+    }
+
+    [Fact]
+    public void Log_file_name_changes_when_the_dump_is_a_different_file()
+    {
+        var t = new DateTime(2026, 7, 12, 10, 28, 55, DateTimeKind.Utc);
+        var name = WinDbgLocator.LogFileName(@"C:\Windows\MEMORY.DMP", 1000, t);
+        Assert.Equal(name, WinDbgLocator.LogFileName(@"c:\windows\memory.dmp", 1000, t), ignoreCase: true);   // same file, any case
+        Assert.NotEqual(name, WinDbgLocator.LogFileName(@"C:\Windows\MEMORY.DMP", 1001, t));  // rewritten by a later crash
+        Assert.NotEqual(name, WinDbgLocator.LogFileName(@"C:\Windows\MEMORY.DMP", 1000, t.AddSeconds(1)));
+        Assert.NotEqual(name, WinDbgLocator.LogFileName(@"D:\Windows\MEMORY.DMP", 1000, t));  // another installation
+    }
+
+    [Fact]
+    public void Only_finished_analyses_with_good_symbols_are_reused()
+    {
+        Assert.True(CrashAnalysis.IsReusable(SampleLog));
+        Assert.False(CrashAnalysis.IsReusable(null));
+        Assert.False(CrashAnalysis.IsReusable("Opened log file 'x'\nLoading Kernel Symbols\n"));   // cut short
+        Assert.False(CrashAnalysis.IsReusable(SampleLog + "\n***** Kernel symbols are WRONG. Please fix symbols to do analysis."));
+        Assert.False(CrashAnalysis.IsReusable(SampleLog + "\n*** Your debugger is not using the correct symbols"));
     }
 
     [Fact]

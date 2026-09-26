@@ -37,6 +37,17 @@ public static partial class CrashAnalysis
         "DEFAULT_BUCKET_ID", "IRP_ADDRESS", "DEVICE_NAME", "DPC_TIMEOUT_TYPE", "CUSTOMER_CRASH_COUNT",
     };
 
+    /// <summary>
+    /// True when a saved "!analyze -v" log finished and had working symbols, so it can be reused instead of
+    /// running WinDbg again. The same dump with the same symbols always analyses the same way; an analysis
+    /// made with missing or wrong symbols (offline, symbol server down) is worth redoing, so it is not reused.
+    /// </summary>
+    public static bool IsReusable(string? log) =>
+        !string.IsNullOrWhiteSpace(log)
+        && log.Contains("FAILURE_BUCKET_ID", StringComparison.Ordinal)
+        && !log.Contains("symbols are WRONG", StringComparison.OrdinalIgnoreCase)
+        && !log.Contains("not using the correct symbols", StringComparison.OrdinalIgnoreCase);
+
     [GeneratedRegex(@"^([A-Z_0-9]+):\s*(.*)$")]
     private static partial Regex FieldLine();
 

@@ -107,12 +107,26 @@ public static class WinDbgLocator
         return candidates.FirstOrDefault(dir => !dir.Contains(' ') && probe(dir));
     }
 
-    /// <summary>"071226-7000-01.dmp" → "071226-7000-01.analyze.txt", with anything WinDbg's command parser dislikes replaced.</summary>
-    public static string LogFileName(string dumpPath)
+    /// <summary>
+    /// "071226-7000-01.dmp" → "071226-7000-01.1a2b3c4d.analyze.txt", with anything WinDbg's command parser
+    /// dislikes replaced. The hex tag comes from the dump's full path, size and write time, so the log doubles
+    /// as a cache of the analysis: a different dump with the same name (MEMORY.DMP is rewritten by every
+    /// crash, and another drive can hold the same file name) gets a different log.
+    /// </summary>
+    public static string LogFileName(string dumpPath, long length, DateTime lastWriteUtc)
     {
         var name = Path.GetFileNameWithoutExtension(dumpPath);
         var safe = new string(name.Select(c => char.IsLetterOrDigit(c) || c is '-' or '_' or '.' ? c : '_').ToArray());
-        return (safe.Length == 0 ? "dump" : safe) + ".analyze.txt";
+        var key = $"{Path.GetFullPath(dumpPath).ToUpperInvariant()}|{length}|{lastWriteUtc.Ticks}";
+        var tag = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(key)), 0, 4).ToLowerInvariant();
+        return $"{(safe.Length == 0 ? "dump" : safe)}.{tag}.analyze.txt";
+    }
+
+    /// <summary>The log name for a dump on disk (see <see cref="LogFileName(string, long, DateTime)"/>).</summary>
+    public static string LogFileName(string dumpPath)
+    {
+        var info = new FileInfo(dumpPath);
+        return LogFileName(dumpPath, info.Length, info.LastWriteTimeUtc);
     }
 
     /// <summary>

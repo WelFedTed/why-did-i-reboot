@@ -8,6 +8,9 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+### Added
+- **Ask AI reuses its WinDbg analysis.** Pressing Ask AI again for the same dump skips WinDbg and goes straight to the chat, using the saved `!analyze -v` log. The saved log belongs to that exact file (path, size and time), so a dump rewritten by a later crash is analysed afresh, and an analysis made without working symbols is never reused. Hold **Shift** while pressing Ask AI to run WinDbg again.
+
 ### Fixed
 - Unexpected-shutdown records (EventLog 6008) now give crash cards their shutdown time, downtime and previous uptime. Windows wraps the date in invisible left-to-right marks, which made it unreadable.
 - Changing the period or log source while a load was still running was ignored, leaving the list showing the old selection. The newer choice is now loaded as soon as the running load finishes.

@@ -523,18 +523,20 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public string BusyText { get => _busyText; private set { _busyText = value; OnPropertyChanged(); } }
 
     /// <summary>Runs "!analyze -v" on the dump through WinDbg, then opens the chosen chat service with a prompt built from the output and the card.</summary>
-    public ICommand AskAiCommand => _askAi ??= new RelayCommand(async p => { if (p is RebootEntry e) await AskAiAsync(e); }, _ => !_isInstallingWinDbg && !IsAskingAi);
+    /// <remarks>A finished analysis is reused for the same dump; holding Shift runs WinDbg again.</remarks>
+    public ICommand AskAiCommand => _askAi ??= new RelayCommand(async p =>
+    {
+        if (p is RebootEntry e) await AskAiAsync(e, fresh: Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+    }, _ => !_isInstallingWinDbg && !IsAskingAi);
     private RelayCommand? _askAi;
 
     public ICommand CancelAskAiCommand => _cancelAskAi ??= new RelayCommand(_ => _askAiCts?.Cancel(), _ => IsAskingAi);
     private RelayCommand? _cancelAskAi;
 
-    public async Task AskAiAsync(RebootEntry entry)
+    public async Task AskAiAsync(RebootEntry entry, bool fresh = false)
     {
         var dump = DumpFor(entry);
         if (dump is null) return;
-        var windbg = await EnsureWinDbgAsync("the analysis will run when it finishes");
-        if (windbg is null) return;
 
         var workDir = WinDbgLocator.AnalysisWorkDir();
         if (workDir is null)
@@ -542,34 +544,60 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Notify?.Invoke("Could not find a writable folder without spaces in its path for WinDbg's log file (WinDbg cannot take quoted paths in its command line).");
             return;
         }
-        var log = System.IO.Path.Combine(workDir, WinDbgLocator.LogFileName(dump));
+        string log;
+        try { log = System.IO.Path.Combine(workDir, WinDbgLocator.LogFileName(dump)); }
+        catch (Exception ex) { Notify?.Invoke("Ask AI could not read the dump file: " + ex.Message); return; }
+
+        // The same dump analyses the same way every time, so a finished analysis from an earlier press is reused.
+        string? text = null;
+        DateTime? savedAt = null;
+        if (!fresh && System.IO.File.Exists(log))
+        {
+            try
+            {
+                var saved = await System.IO.File.ReadAllTextAsync(log);
+                if (CrashAnalysis.IsReusable(saved)) { text = saved; savedAt = System.IO.File.GetLastWriteTime(log); }
+            }
+            catch (System.IO.IOException) { /* WinDbg may still have it open from a cancelled run; analyse again */ }
+        }
+
+        string? windbg = null;
+        if (text is null)
+        {
+            windbg = await EnsureWinDbgAsync("the analysis will run when it finishes");
+            if (windbg is null) return;
+        }
 
         IsAskingAi = true;
-        BusyText = "WinDbg is analysing the crash dump… This can take a few minutes the first time while it downloads symbols. Leave the WinDbg window alone.";
+        BusyText = text is null
+            ? "WinDbg is analysing the crash dump… This can take a few minutes the first time while it downloads symbols. Leave the WinDbg window alone."
+            : "Preparing the prompt…";
         _askAiCts = new CancellationTokenSource();
         CommandManager.InvalidateRequerySuggested();
         try
         {
-            if (System.IO.File.Exists(log)) System.IO.File.Delete(log);
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(windbg, WinDbgLocator.AnalyzeToLogArguments(dump, log)) { UseShellExecute = true });
-
-            string? text;
-            try
-            {
-                text = await WinDbgLocator.WaitForLogAsync(log, TimeSpan.FromMinutes(6), _askAiCts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                return;   // the user pressed Cancel; WinDbg keeps running on its own
-            }
             if (text is null)
             {
-                Notify?.Invoke("WinDbg did not finish writing the analysis within 6 minutes (symbol downloads can be slow the first time). Leave WinDbg open and try Ask AI again once it has finished.");
-                return;
+                if (System.IO.File.Exists(log)) System.IO.File.Delete(log);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(windbg!, WinDbgLocator.AnalyzeToLogArguments(dump, log)) { UseShellExecute = true });
+
+                try
+                {
+                    text = await WinDbgLocator.WaitForLogAsync(log, TimeSpan.FromMinutes(6), _askAiCts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;   // the user pressed Cancel; WinDbg keeps running on its own
+                }
+                if (text is null)
+                {
+                    Notify?.Invoke("WinDbg did not finish writing the analysis within 6 minutes (symbol downloads can be slow the first time). Leave WinDbg open and try Ask AI again once it has finished.");
+                    return;
+                }
+                BusyText = "Preparing the prompt…";
+                // The session was told to quit (qq); close the WinDbg window for this dump if it is still there.
+                await Task.Run(() => WinDbgLocator.CloseDebuggerWindowsFor(dump, TimeSpan.FromSeconds(5)));
             }
-            BusyText = "Preparing the prompt…";
-            // The session was told to quit (qq); close the WinDbg window for this dump if it is still there.
-            await Task.Run(() => WinDbgLocator.CloseDebuggerWindowsFor(dump, TimeSpan.FromSeconds(5)));
 
             var summary = CrashAnalysis.Summarize(text);
             var entryText = TextExporter.EntryToText(entry);
@@ -582,6 +610,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Notify?.Invoke($"Opening {service.Name} with the crash analysis." +
                            (trimmed ? " The web address had to shorten the analysis, so the full prompt has been copied to the clipboard: paste it if the chat looks incomplete." : " The prompt has also been copied to the clipboard.") +
                            (service.NeedsSignIn ? $"\n\n{service.Name} needs you to be signed in." : "") +
+                           (savedAt is DateTime at ? $"\n\nUsed the WinDbg analysis of this dump saved {Format.WhenShort(at)}. Hold Shift while pressing Ask AI to analyse it again." : "") +
                            $"\n\nFull WinDbg output: {log}");
         }
         catch (Exception ex)
