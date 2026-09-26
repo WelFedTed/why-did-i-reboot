@@ -91,9 +91,28 @@ public sealed class RelayCommand : ICommand
     public event EventHandler? CanExecuteChanged { add => CommandManager.RequerySuggested += value; remove => CommandManager.RequerySuggested -= value; }
 }
 
+/// <summary>An observable collection whose contents can be swapped with a single Reset notification.</summary>
+public sealed class BulkObservableCollection<T> : ObservableCollection<T>
+{
+    /// <summary>
+    /// Replaces every item and raises one Reset, so a view over it filters and groups once rather than
+    /// once per item. (A view's DeferRefresh cannot do this: WPF throws when the source changes while deferred.)
+    /// </summary>
+    public void ReplaceAll(IEnumerable<T> items)
+    {
+        CheckReentrancy();
+        Items.Clear();
+        foreach (var item in items) Items.Add(item);
+        OnPropertyChanged(new PropertyChangedEventArgs(nameof(Count)));
+        OnPropertyChanged(new PropertyChangedEventArgs("Item[]"));
+        OnCollectionChanged(new System.Collections.Specialized.NotifyCollectionChangedEventArgs(
+            System.Collections.Specialized.NotifyCollectionChangedAction.Reset));
+    }
+}
+
 public sealed class MainViewModel : INotifyPropertyChanged
 {
-    private readonly ObservableCollection<RebootEntry> _entries = new();
+    private readonly BulkObservableCollection<RebootEntry> _entries = new();
     private string _searchText = "";
     private RangeOption _range;
     private ThemeOption _theme;
@@ -728,11 +747,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             var result = await Task.Run(() => RebootAnalyzer.Analyze(range, location));
             _last = result;
             // One filter-and-group pass when the batch is in, rather than one per added card.
-            using (View.DeferRefresh())
-            {
-                _entries.Clear();
-                foreach (var e in result.Entries) _entries.Add(e);
-            }
+            _entries.ReplaceAll(result.Entries);
             foreach (var c in Categories) c.Count = result.Entries.Count(e => e.Category == c.Category);
 
             if (location.IsCsv)

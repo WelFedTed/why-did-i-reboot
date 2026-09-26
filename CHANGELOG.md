@@ -8,6 +8,17 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+### Fixed
+- Unexpected-shutdown records (EventLog 6008) now give crash cards their shutdown time, downtime and previous uptime. Windows wraps the date in invisible left-to-right marks, which made it unreadable.
+- Changing the period or log source while a load was still running was ignored, leaving the list showing the old selection. The newer choice is now loaded as soon as the running load finishes.
+- *Open dump folder* opened this PC's `C:\Windows\Minidump` when viewing another installation's logs; it now opens the folder on that drive.
+- Driver labels were missing from a card's title when nothing else on the card named a driver.
+- The HTML report only turns `http`/`https` addresses into links, so a CSV edited to hold a `javascript:` link cannot put a working script link in the report.
+
+### Changed
+- Faster loading on long logs: records from unrelated providers are skipped before they are parsed, each boot's records are found by binary search instead of rescanning the whole log, and the list is filtered and grouped once per load instead of once per card.
+- Filter presets, search and chip counts do less repeated work, and the app no longer rebuilds every card when an unrelated Windows setting changes.
+
 ## [0.10.0] - 2026-09-20
 
 ### Added
