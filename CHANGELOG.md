@@ -8,6 +8,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-27
+
 ### Added
 - **Ask AI reuses its WinDbg analysis.** Pressing Ask AI again for the same dump skips WinDbg and goes straight to the chat, using the saved `!analyze -v` log. The saved log belongs to that exact file (path, size and time), so a dump rewritten by a later crash is analysed afresh, and an analysis made without working symbols is never reused. Hold **Shift** while pressing Ask AI to run WinDbg again.
 - **Clear cache** in Settings, above *Updates*. It shows how much is cached and removes the saved WinDbg analyses (so Ask AI runs WinDbg again for every dump) and any update downloads left in the temp folder, forgets the Windows Update history read in the last few minutes, then reloads the list. Files still open in WinDbg are kept and reported.
@@ -146,7 +148,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - Export to text or CSV, copy a single entry, open Event Viewer, and jump to a crash dump in Explorer.
 - Headless `--export` mode for scripts.
 
-[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.7.0...v0.8.0
