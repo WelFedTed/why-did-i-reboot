@@ -8,7 +8,10 @@ public partial class SettingsWindow : Window
     {
         InitializeComponent();
         DataContext = vm;
+        // Sized to its content, but never taller than the screen; the sections scroll instead.
+        MaxHeight = SystemParameters.WorkArea.Height;
         SourceInitialized += (_, _) => ThemeManager.ApplyTitleBar(this);
+        _ = vm.RefreshCacheStatusAsync();
         PreviewKeyDown += (_, e) =>
         {
             // F9 opens Settings from the main window; pressing it again here closes them.

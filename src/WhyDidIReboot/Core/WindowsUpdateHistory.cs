@@ -20,6 +20,12 @@ public static class WindowsUpdateHistory
     private static Dictionary<string, UpdateDetails>? _cache;
     private static DateTime _cachedAt;
 
+    /// <summary>Forgets the history read in the last few minutes, so the next load asks Windows Update again.</summary>
+    public static void Invalidate()
+    {
+        lock (Gate) _cache = null;
+    }
+
     /// <summary>
     /// Returns history keyed by KB number ("KB5094126") and, for entries without one such as driver
     /// updates, by the exact title. Empty (never null) if the API is unavailable.

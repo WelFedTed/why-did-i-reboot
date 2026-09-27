@@ -95,16 +95,22 @@ public static class WinDbgLocator
     /// </summary>
     public static string? AnalysisWorkDir(Func<string, bool>? probe = null, Func<string, string?>? env = null)
     {
-        env ??= Environment.GetEnvironmentVariable;
         probe ??= dir =>
         {
             try { Directory.CreateDirectory(dir); File.WriteAllText(Path.Combine(dir, ".probe"), ""); File.Delete(Path.Combine(dir, ".probe")); return true; }
             catch { return false; }
         };
-        var candidates = new[] { env("PUBLIC"), env("ProgramData"), env("TEMP"), env("TMP"), @"C:\" }
+        return AnalysisDirCandidates(env).FirstOrDefault(dir => !dir.Contains(' ') && probe(dir));
+    }
+
+    /// <summary>Every folder <see cref="AnalysisWorkDir"/> may pick, in order, whether or not it exists.</summary>
+    public static IEnumerable<string> AnalysisDirCandidates(Func<string, string?>? env = null)
+    {
+        env ??= Environment.GetEnvironmentVariable;
+        return new[] { env("PUBLIC"), env("ProgramData"), env("TEMP"), env("TMP"), @"C:\" }
             .Where(root => !string.IsNullOrWhiteSpace(root))
-            .Select(root => Path.Combine(root!, "WhyDidIReboot", "analysis"));
-        return candidates.FirstOrDefault(dir => !dir.Contains(' ') && probe(dir));
+            .Select(root => Path.Combine(root!, "WhyDidIReboot", "analysis"))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>

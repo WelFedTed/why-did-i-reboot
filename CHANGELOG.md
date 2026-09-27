@@ -10,6 +10,7 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ### Added
 - **Ask AI reuses its WinDbg analysis.** Pressing Ask AI again for the same dump skips WinDbg and goes straight to the chat, using the saved `!analyze -v` log. The saved log belongs to that exact file (path, size and time), so a dump rewritten by a later crash is analysed afresh, and an analysis made without working symbols is never reused. Hold **Shift** while pressing Ask AI to run WinDbg again.
+- **Clear cache** in Settings, above *Updates*. It shows how much is cached and removes the saved WinDbg analyses (so Ask AI runs WinDbg again for every dump) and any update downloads left in the temp folder, forgets the Windows Update history read in the last few minutes, then reloads the list. Files still open in WinDbg are kept and reported.
 
 ### Fixed
 - Unexpected-shutdown records (EventLog 6008) now give crash cards their shutdown time, downtime and previous uptime. Windows wraps the date in invisible left-to-right marks, which made it unreadable.
@@ -21,6 +22,7 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 ### Changed
 - Faster loading on long logs: records from unrelated providers are skipped before they are parsed, each boot's records are found by binary search instead of rescanning the whole log, and the list is filtered and grouped once per load instead of once per card.
 - Filter presets, search and chip counts do less repeated work, and the app no longer rebuilds every card when an unrelated Windows setting changes.
+- The Settings window fits its content and scrolls when the screen is too short for it, instead of having a fixed height.
 
 ## [0.10.0] - 2026-09-20
 

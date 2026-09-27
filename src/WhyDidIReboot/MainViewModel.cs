@@ -273,7 +273,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             var asset = UpdateInstaller.ChooseAsset(_latest, frameworkDependent)
                 ?? throw new InvalidOperationException($"Release {_latest.Tag} has no {(frameworkDependent ? UpdateInstaller.FrameworkDependentAsset : UpdateInstaller.SelfContainedAsset)} asset.");
 
-            var temp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "WhyDidIReboot-update");
+            var temp = AppCache.UpdateDownloadDir;
             System.IO.Directory.CreateDirectory(temp);
             var download = System.IO.Path.Combine(temp, asset.Name);
 
@@ -532,6 +532,50 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public ICommand CancelAskAiCommand => _cancelAskAi ??= new RelayCommand(_ => _askAiCts?.Cancel(), _ => IsAskingAi);
     private RelayCommand? _cancelAskAi;
+
+    // ---------------------------------------------------------------- cache
+
+    private string _cacheStatus = "";
+    private bool _isClearingCache;
+
+    /// <summary>What Settings says about the cache: its size, or what the last Clear cache removed.</summary>
+    public string CacheStatus { get => _cacheStatus; private set { _cacheStatus = value; OnPropertyChanged(); } }
+
+    /// <summary>Measures the cache folders for the Settings screen.</summary>
+    public async Task RefreshCacheStatusAsync()
+    {
+        var size = await Task.Run(() => AppCache.Measure(AppCache.Folders()));
+        CacheStatus = size.Files == 0 ? "The cache is empty." : $"In use: {AppCache.Describe(size)}.";
+    }
+
+    /// <summary>
+    /// Deletes saved WinDbg analyses and leftover update downloads, forgets the Windows Update history read
+    /// in the last few minutes, and reloads the list. Ask AI runs WinDbg again for every dump afterwards.
+    /// </summary>
+    public ICommand ClearCacheCommand => _clearCache ??= new RelayCommand(async _ => await ClearCacheAsync(),
+        _ => !_isClearingCache && !IsAskingAi && !IsUpdating && !IsBusy);
+    private RelayCommand? _clearCache;
+
+    public async Task ClearCacheAsync()
+    {
+        _isClearingCache = true;
+        CommandManager.InvalidateRequerySuggested();
+        try
+        {
+            CacheStatus = "Clearing…";
+            var (removed, skipped) = await Task.Run(() => AppCache.Clear(AppCache.Folders()));
+            WindowsUpdateHistory.Invalidate();
+            CacheStatus = (removed.Files == 0 ? "Cleared: nothing was cached." : $"Cleared {AppCache.Describe(removed)}.") +
+                          (skipped > 0 ? $" {skipped} file{(skipped == 1 ? " was" : "s were")} in use and kept." : "");
+        }
+        finally
+        {
+            _isClearingCache = false;
+            CommandManager.InvalidateRequerySuggested();
+        }
+        // Re-read the logs so update details come fresh from Windows Update and every card is rebuilt.
+        await RefreshAsync();
+    }
 
     public async Task AskAiAsync(RebootEntry entry, bool fresh = false)
     {
