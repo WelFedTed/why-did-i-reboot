@@ -39,6 +39,7 @@ Settings (the cog in the header) holds the theme picker, the log source, the sea
 - **Logs from another Windows installation**: Settings (the cog, or **F9**) → *Open logs…*, then pick a second drive, its Windows folder, or a copied `winevt\Logs` folder. Crash dump paths are checked on that drive. Also `--source <folder>` on the command line, or drop the folder onto the window.
 - **Saved reports**: the CSV export keeps every card field, and can be re-opened later from Settings → *Open CSV…*, with `--source report.csv`, or by dropping the file onto the window.
 - **Updates**: checks GitHub Releases once at startup (toggle in Settings, on by default) or on demand. When a newer version exists, *Update now* downloads the matching build, verifies the published SHA-256 digest, the executable header and its version, swaps it in beside the running copy and relaunches. Nothing is sent beyond the requests themselves.
+- **Run as administrator**: not needed for normal use, but when the app is not elevated a shield button beside the Settings cog restarts it through the UAC prompt, for crash dumps or another installation's logs that an ordinary account cannot read.
 - Buttons to jump to Event Viewer or straight to a crash dump in Explorer.
 
 ## Build and run

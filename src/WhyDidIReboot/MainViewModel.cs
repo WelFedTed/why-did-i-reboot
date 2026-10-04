@@ -361,7 +361,41 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public LogLocation Location { get => _location; private set { _location = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsOffline)); OnPropertyChanged(nameof(WindowTitle)); } }
     public bool IsOffline => _location.IsOffline;
-    public string WindowTitle => IsOffline ? $"Why Did I Reboot — {_location.Display}" : "Why Did I Reboot";
+    public string WindowTitle => (IsOffline ? $"Why Did I Reboot — {_location.Display}" : "Why Did I Reboot") + (IsElevated ? " (Administrator)" : "");
+
+    // ---------------------------------------------------------------- elevation
+
+    /// <summary>True when the app already runs as administrator; the header's shield button is hidden then.</summary>
+    public bool IsElevated { get; } = Elevation.IsElevated();
+    public bool CanElevate => !IsElevated;
+
+    /// <summary>Starts the app again through the UAC prompt and closes this copy once the new one is running.</summary>
+    public ICommand RunAsAdminCommand => _runAsAdmin ??= new RelayCommand(async _ => await RunAsAdminAsync(),
+        _ => CanElevate && !_isElevating && !IsUpdating && !IsAskingAi);
+    private RelayCommand? _runAsAdmin;
+    private bool _isElevating;
+
+    public async Task RunAsAdminAsync()
+    {
+        if (Environment.ProcessPath is not { } exe) { Notify?.Invoke("Cannot determine the running executable to restart it as administrator."); return; }
+        _isElevating = true;
+        CommandManager.InvalidateRequerySuggested();
+        try
+        {
+            // The UAC prompt blocks the call that raises it, so keep it off the UI thread.
+            var started = await Task.Run(() => Elevation.Relaunch(exe));
+            if (started) System.Windows.Application.Current.Shutdown();   // declined: just carry on as we are
+        }
+        catch (Exception ex)
+        {
+            Notify?.Invoke("Could not restart as administrator: " + ex.Message);
+        }
+        finally
+        {
+            _isElevating = false;
+            CommandManager.InvalidateRequerySuggested();
+        }
+    }
 
     /// <summary>Switches to another Windows installation's logs and re-reads. Returns false if none were found there.</summary>
     public async Task<bool> LoadOfflineAsync(string folder)

@@ -8,6 +8,12 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+### Added
+- **Run as administrator** button (a shield) to the right of the Settings cog, shown only when the app is not elevated. It restarts the app through the Windows UAC prompt, for crash dumps and logs that need elevated access; answering No leaves the app running as it was. When elevated, the title bar reads "Why Did I Reboot (Administrator)".
+
+### Changed
+- The main window opens slightly wider so the header still fits on one line with the extra button.
+
 ## [0.11.0] - 2026-09-27
 
 ### Added
