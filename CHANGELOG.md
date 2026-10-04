@@ -8,6 +8,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-04
+
 ### Added
 - **Run as administrator** button (a shield) to the right of the Settings cog, shown only when the app is not elevated. It restarts the app through the Windows UAC prompt, for crash dumps and logs that need elevated access; answering No leaves the app running as it was. When elevated, the title bar reads "Why Did I Reboot (Administrator)".
 
@@ -154,7 +156,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - Export to text or CSV, copy a single entry, open Event Viewer, and jump to a crash dump in Explorer.
 - Headless `--export` mode for scripts.
 
-[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.8.0...v0.9.0
