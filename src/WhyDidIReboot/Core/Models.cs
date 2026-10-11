@@ -101,12 +101,27 @@ public sealed record LogLocation(string SystemPath, string? ApplicationPath, str
     /// <summary>True when <see cref="SystemPath"/> is a CSV report this app exported, not an event log.</summary>
     public bool IsCsv { get; init; }
 
+    /// <summary>
+    /// The .zip this report was unpacked from (see <see cref="ReportBundle"/>), or null. <see cref="Root"/> is
+    /// then the unpacked "dumps" folder and <see cref="SystemPath"/> the unpacked report.csv.
+    /// </summary>
+    public string? BundlePath { get; init; }
+
     public static LogLocation ForCsv(string path) =>
         new(path, null, null, Path.GetFileName(path), true) { IsCsv = true };
 
+    /// <summary>A report bundle unpacked into <paramref name="extractedDir"/>.</summary>
+    public static LogLocation ForBundle(string zipPath, string extractedDir) =>
+        new(Path.Combine(extractedDir, ReportBundle.ReportEntry), null, Path.Combine(extractedDir, ReportBundle.DumpsFolder), Path.GetFileName(zipPath), true)
+        {
+            IsCsv = true,
+            BundlePath = zipPath,
+        };
+
     /// <summary>
     /// Accepts a drive root (D:\), a Windows folder (D:\Windows), the winevt\Logs folder, a System.evtx file,
-    /// or a .csv report exported by this app, and finds what to read. <paramref name="fileExists"/> is injectable for tests.
+    /// or a .csv report or .zip report-with-dumps exported by this app, and finds what to read (unpacking a
+    /// .zip). <paramref name="fileExists"/> is injectable for tests.
     /// </summary>
     public static LogLocation? Resolve(string path, Func<string, bool>? fileExists = null)
     {
@@ -115,6 +130,7 @@ public sealed record LogLocation(string SystemPath, string? ApplicationPath, str
         var p = path.Trim().TrimEnd('\\', '/');
         if (p.Length == 2 && p[1] == ':') p += '\\';   // "D:" → "D:\"
         if (p.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)) return fileExists(p) ? ForCsv(p) : null;
+        if (ReportBundle.IsBundlePath(p)) return fileExists(p) ? ReportBundle.Open(p) : null;
 
         var candidates = new List<string>();
         if (p.EndsWith(".evtx", StringComparison.OrdinalIgnoreCase)) candidates.Add(p);
@@ -140,9 +156,10 @@ public sealed record LogLocation(string SystemPath, string? ApplicationPath, str
         return new LogLocation(system, appPath, root, root ?? logsDir, true);
     }
 
-    /// <summary>Maps a path recorded on the original machine (C:\Windows\...) onto the offline drive.</summary>
+    /// <summary>Maps a path recorded on the original machine (C:\Windows\...) onto the offline drive or the unpacked bundle.</summary>
     public string MapPath(string path)
     {
+        if (BundlePath is not null && Root is not null) return ReportBundle.LocalPathFor(Root, path);
         if (!IsOffline || Root is null || path.Length < 3 || path[1] != ':') return path;
         return Path.Combine(Root, path[3..]);
     }

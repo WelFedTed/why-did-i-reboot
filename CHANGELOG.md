@@ -8,6 +8,18 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+### Added
+- **Report with crash dumps.** Export has a fourth format, *Report with crash dumps (.zip)*: the re-openable CSV plus the dump file of every card shown. Open it on any PC (Settings → *Open report…*, drop it on the window, or `WhyDidIReboot.exe report.zip`) and *Debug in WinDbg*, *Ask AI* and *Open dump folder* work on the dumps that came with it, not on whatever is at the same path on that PC. Before packing, the app says which dumps need administrator rights (Windows restricts most of them) and asks before including more than 500 MB; afterwards it lists what was and was not included. Headless: `--export report.zip` and `--source report.zip`.
+- A report or another installation's folder can be opened from the command line: `WhyDidIReboot.exe <path>` or `--source <path>` without `--export`.
+
+### Changed
+- Settings → *Open CSV…* is now *Open report…* and accepts both `.csv` and `.zip` reports.
+- A re-opened report's *Dump file present* row says whether the dump is available where the report is opened, rather than repeating what was true on the PC that exported it.
+- Clear cache also removes crash dumps unpacked from opened reports; a report that is still open is unpacked again.
+
+### Fixed
+- A crash could be filed under the wrong date (4 October shown as 10 April) when Windows' system format and the user's date format put day and month in different orders. The date in an unexpected-shutdown record is now read in whichever order fits the surrounding log.
+
 ## [0.12.0] - 2026-10-04
 
 ### Added

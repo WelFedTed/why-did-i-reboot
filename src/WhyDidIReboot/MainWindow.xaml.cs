@@ -11,7 +11,8 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm = new();
 
-    public MainWindow()
+    /// <param name="openPath">A report (.csv, .zip) or another installation's folder to show instead of this PC's logs.</param>
+    public MainWindow(string? openPath = null)
     {
         InitializeComponent();
         DataContext = _vm;
@@ -27,7 +28,12 @@ public partial class MainWindow : Window
         SourceInitialized += (_, _) => ThemeManager.ApplyTitleBar(this);
         Loaded += async (_, _) =>
         {
-            await _vm.RefreshAsync();
+            if (string.IsNullOrWhiteSpace(openPath)) await _vm.RefreshAsync();
+            else
+            {
+                await OpenPathAsync(openPath);
+                if (_vm.LastResult is null) await _vm.RefreshAsync();   // it could not be opened: show this PC
+            }
             if (AppSettings.Current.CheckUpdatesOnStartup)
                 await _vm.CheckForUpdatesAsync(silent: true);
         };
@@ -55,27 +61,27 @@ public partial class MainWindow : Window
         await OpenPathAsync(dialog.FolderName);
     }
 
-    /// <summary>Lets the user pick a CSV report this app exported and shows its entries.</summary>
+    /// <summary>Lets the user pick a report this app exported (.csv, or .zip with crash dumps) and shows its entries.</summary>
     public async void BrowseCsv()
     {
         var dialog = new OpenFileDialog
         {
-            Title = "Open a CSV report exported by Why Did I Reboot",
-            Filter = "CSV report (*.csv)|*.csv",
+            Title = "Open a report exported by Why Did I Reboot",
+            Filter = "Saved reports (*.csv;*.zip)|*.csv;*.zip|CSV report (*.csv)|*.csv|Report with crash dumps (*.zip)|*.zip",
         };
         if (dialog.ShowDialog(this) != true) return;
         await OpenPathAsync(dialog.FileName);
     }
 
-    /// <summary>Opens a dropped or chosen path: a .csv report, or a folder/.evtx of another installation.</summary>
+    /// <summary>Opens a dropped or chosen path: a .csv or .zip report, or a folder/.evtx of another installation.</summary>
     private async Task OpenPathAsync(string path)
     {
         try
         {
-            if (path.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+            if (path.EndsWith(".csv", StringComparison.OrdinalIgnoreCase) || ReportBundle.IsBundlePath(path))
             {
                 if (!await _vm.LoadCsvAsync(path))
-                    MessageBox.Show(this, $"Could not open:\n{path}", "CSV not found", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show(this, $"Could not open:\n{path}", "Report not found", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
             if (!await _vm.LoadOfflineAsync(path))
@@ -104,7 +110,7 @@ public partial class MainWindow : Window
             await OpenPathAsync(paths[0]);
     }
 
-    private void Export_Click(object sender, RoutedEventArgs e)
+    private async void Export_Click(object sender, RoutedEventArgs e)
     {
         if (_vm.LastResult is null) return;
         var subject = _vm.IsOffline ? "offline" : Environment.MachineName;
@@ -112,13 +118,19 @@ public partial class MainWindow : Window
         {
             Title = "Export reboot history",
             FileName = $"why-did-i-reboot-{subject}-{DateTime.Now:yyyyMMdd-HHmm}",
-            Filter = "HTML report (*.html)|*.html|Text report (*.txt)|*.txt|CSV report, re-openable in this app (*.csv)|*.csv",
+            Filter = "HTML report (*.html)|*.html|Text report (*.txt)|*.txt|CSV report, re-openable in this app (*.csv)|*.csv" +
+                     "|Report with crash dumps, re-openable on any PC (*.zip)|*.zip",
             DefaultExt = ".html",
         };
         if (dialog.ShowDialog(this) != true) return;
 
         var entries = _vm.VisibleEntries.ToList();
         var name = dialog.FileName;
+        if (ReportBundle.IsBundlePath(name))
+        {
+            await _vm.ExportBundleAsync(name, entries);
+            return;
+        }
         var content = name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase) ? TextExporter.ToCsv(entries)
             : name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase) ? TextExporter.ToText(_vm.LastResult, entries, _vm.RangeLabel)
             : TextExporter.ToHtml(_vm.LastResult, entries, _vm.RangeLabel);

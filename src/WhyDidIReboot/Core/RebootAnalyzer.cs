@@ -40,7 +40,8 @@ public static class RebootAnalyzer
 
         if (location.IsCsv)
         {
-            var imported = CsvReport.Load(location.SystemPath, warnings).Where(e => range.Contains(e.Timestamp)).ToList();
+            ReportBundle.EnsureExtracted(location);   // a bundle's unpacked files are a cache that may have been cleared
+            var imported = CsvReport.Load(location.SystemPath, warnings, location.MapPath).Where(e => range.Contains(e.Timestamp)).ToList();
             return new AnalysisResult
             {
                 Entries = imported.OrderByDescending(e => e.Timestamp).ToList(),
@@ -192,7 +193,7 @@ public static class RebootAnalyzer
         var lastWake = before.LastOrDefault(e => e.Is(EventLogSource.PowerTroubleshooter, 1));
 
         DateTime? shutdownTime = kg13?.Time ?? e6006?.Time ?? kp109?.Time;
-        if (shutdownTime is null && e6008 is not null) shutdownTime = ParseUnexpectedShutdownTime(e6008);
+        if (shutdownTime is null && e6008 is not null) shutdownTime = ParseUnexpectedShutdownTime(e6008, boot.Time, before.Count > 0 ? before[^1].Time : null);
         if (e1074 is not null && shutdownTime is not null && shutdownTime.Value - e1074.Time > RequestWindow) e1074 = null;
         if (e1074 is not null && shutdownTime is null && boot.Time - e1074.Time > RequestWindow) e1074 = null;
 
@@ -281,7 +282,7 @@ public static class RebootAnalyzer
                 else if (bugcheck is not null)
                     Detail("Parameters", bugcheck.Get("param1", 0));
                 Detail("Crash dump", dumpPath);
-                Detail("Dump file present", string.IsNullOrWhiteSpace(dumpPath) ? null : dumpExists ? "Yes" : "No");
+                Detail(CsvReport.DumpPresentDetail, string.IsNullOrWhiteSpace(dumpPath) ? null : dumpExists ? "Yes" : "No");
                 var report = bugcheck?.Get("param3", 2);
                 Detail("Report ID", report);
                 var wer = string.IsNullOrEmpty(report) ? null
@@ -628,14 +629,33 @@ public static class RebootAnalyzer
     public static string CatalogUrl(string title) =>
         "https://www.catalog.update.microsoft.com/Search.aspx?q=" + Uri.EscapeDataString(title.Trim());
 
-    private static DateTime? ParseUnexpectedShutdownTime(RawEvent e6008)
+    /// <summary>Cultures whose date order the 6008 text may be in, besides the reader's own; between them they cover M/d/y, d/M/y and y-M-d.</summary>
+    private static readonly CultureInfo[] DateCultures =
+    {
+        CultureInfo.InvariantCulture, CultureInfo.InstalledUICulture, CultureInfo.GetCultureInfo("en-US"), CultureInfo.GetCultureInfo("en-GB"),
+    };
+
+    /// <param name="bootTime">The boot that followed; the shutdown it reports happened before this.</param>
+    /// <param name="lastSeen">The last record of the session that ended, if any; the shutdown was at or soon after it.</param>
+    private static DateTime? ParseUnexpectedShutdownTime(RawEvent e6008, DateTime bootTime, DateTime? lastSeen)
     {
         // "The previous system shutdown at %1 on %2 was unexpected." Both parts are localized strings.
         // Windows wraps the date parts in left-to-right marks (U+200E), which DateTime.TryParse rejects.
         var text = new string($"{e6008.Get("param2", 1)} {e6008.Get("param1", 0)}".Where(c => c is not ('\u200E' or '\u200F')).ToArray());
-        if (DateTime.TryParse(text, CultureInfo.CurrentCulture, DateTimeStyles.AssumeLocal, out var dt)) return dt;
-        if (DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out dt)) return dt;
-        return null;
+
+        // The date is written in the system locale's format, which need not be the format of whoever is
+        // reading the log: "10/4/2026" is 4 October on a US-format system and 10 April to a d/M/y reader.
+        // Try both orders and keep the reading that fits: not after the boot, and nearest to the last
+        // thing the ended session logged (or to the boot when that session left no records in range).
+        var anchor = lastSeen ?? bootTime;
+        DateTime? best = null;
+        foreach (var culture in DateCultures.Prepend(CultureInfo.CurrentCulture))
+        {
+            if (!DateTime.TryParse(text, culture, DateTimeStyles.AssumeLocal, out var dt)) continue;
+            if (dt > bootTime.AddMinutes(1)) continue;
+            if (best is null || (dt - anchor).Duration() < (best.Value - anchor).Duration()) best = dt;
+        }
+        return best;
     }
 
     private static DateTime? ParseUtc(string text) =>

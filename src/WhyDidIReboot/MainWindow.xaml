@@ -418,13 +418,14 @@
                 <TextBlock Text="Reading the Windows event log…" Foreground="{DynamicResource TextMuted}" Margin="0,14,0,0" HorizontalAlignment="Center"/>
             </StackPanel>
 
-            <!-- Busy overlay while WinDbg analyses a dump for Ask AI: a spinning ring, the status text and a Cancel link -->
+            <!-- Busy overlay while WinDbg analyses a dump for Ask AI, or while crash dumps are packed into or unpacked
+                 from a report: a spinning ring, the status text and a Cancel link -->
             <Border Background="{DynamicResource WindowBg}" Opacity="0.92" Visibility="{Binding IsAskingAi, Converter={StaticResource BoolToVis}}">
                 <Border Background="{DynamicResource SurfaceBg}" BorderBrush="{DynamicResource SurfaceBorder}" BorderThickness="1" CornerRadius="10"
                         Padding="28,24" MaxWidth="460" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <StackPanel>
                         <local:Spinner HorizontalAlignment="Center"/>
-                        <TextBlock Text="Ask AI" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" Margin="0,14,0,4"/>
+                        <TextBlock Text="{Binding BusyTitle}" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" Margin="0,14,0,4"/>
                         <TextBlock Text="{Binding BusyText}" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" TextAlignment="Center"/>
                         <Button Content="Cancel" Style="{StaticResource LinkButton}" HorizontalAlignment="Center" Margin="0,14,0,0" Command="{Binding CancelAskAiCommand}"/>
                     </StackPanel>

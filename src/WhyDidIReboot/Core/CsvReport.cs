@@ -17,6 +17,9 @@ public static class CsvReport
         "Details", "Links", "Updates", "LogRecords",
     };
 
+    /// <summary>The detail row the analyzer writes for whether a card's dump file is on disk.</summary>
+    public const string DumpPresentDetail = "Dump file present";
+
     private const string Stamp = "yyyy-MM-dd HH:mm:ss";
     private const char Tab = '\t';
 
@@ -48,11 +51,13 @@ public static class CsvReport
     }
 
     /// <summary>Reads a CSV file this app wrote. Rows that cannot be understood are skipped and reported.</summary>
-    public static List<RebootEntry> Load(string path, List<string>? warnings = null) =>
-        Parse(File.ReadAllText(path), warnings);
+    /// <param name="mapPath">Turns a recorded dump path into where that file is now (a report bundle's unpacked dumps).</param>
+    public static List<RebootEntry> Load(string path, List<string>? warnings = null, Func<string, string>? mapPath = null) =>
+        Parse(File.ReadAllText(path), warnings, mapPath);
 
-    public static List<RebootEntry> Parse(string text, List<string>? warnings = null)
+    public static List<RebootEntry> Parse(string text, List<string>? warnings = null, Func<string, string>? mapPath = null)
     {
+        mapPath ??= p => p;
         var rows = ReadRows(text);
         if (rows.Count == 0) throw new InvalidDataException("The file is empty.");
 
@@ -80,6 +85,7 @@ public static class CsvReport
                     : RebootCategory.Unknown;
 
                 var dump = Cell("DumpPath");
+                var dumpExists = dump.Length > 0 && File.Exists(mapPath(dump));
                 entries.Add(new RebootEntry
                 {
                     Timestamp = timestamp,
@@ -91,8 +97,10 @@ public static class CsvReport
                     Downtime = ParseSeconds(Cell("DowntimeSeconds")),
                     PreviousUptime = ParseSeconds(Cell("PreviousUptimeSeconds")),
                     DumpPath = dump.Length > 0 ? dump : null,
-                    DumpExists = dump.Length > 0 && File.Exists(dump),
-                    Details = Lines(Cell("Details")).Select(l => Split(l, 2)).Where(p => p.Length == 2).Select(p => new KeyValuePair<string, string>(p[0], p[1])).ToList(),
+                    DumpExists = dumpExists,
+                    // "Dump file present" was true of the PC that wrote the report; say what is true here.
+                    Details = Lines(Cell("Details")).Select(l => Split(l, 2)).Where(p => p.Length == 2)
+                        .Select(p => new KeyValuePair<string, string>(p[0], p[0] == DumpPresentDetail && dump.Length > 0 ? (dumpExists ? "Yes" : "No") : p[1])).ToList(),
                     Links = Lines(Cell("Links")).Select(l => Split(l, 2)).Where(p => p.Length == 2).Select(p => new LinkItem(p[0], p[1])).ToList(),
                     Updates = Lines(Cell("Updates")).Select(l => Split(l, 7)).Where(p => p.Length == 7)
                         .Select(p => new UpdateItem(p[0], Null(p[1]), Null(p[2]), Null(p[3]), Null(p[4]), p[5] == "1", p[6].Length > 0 ? p[6] : UpdateClassifier.Other)).ToList(),

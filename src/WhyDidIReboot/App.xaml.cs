@@ -29,10 +29,12 @@ public partial class App : Application
             var sourceIndex = Array.FindIndex(args, a => a.Equals("--source", StringComparison.OrdinalIgnoreCase));
             if (sourceIndex >= 0 && sourceIndex + 1 < args.Length)
             {
-                var resolved = LogLocation.Resolve(args[sourceIndex + 1]);
+                LogLocation? resolved;
+                try { resolved = LogLocation.Resolve(args[sourceIndex + 1]); }
+                catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException) { resolved = null; }
                 if (resolved is null)
                 {
-                    File.WriteAllText(path, $"ERROR: no System.evtx found under '{args[sourceIndex + 1]}'.");
+                    File.WriteAllText(path, $"ERROR: no System.evtx, .csv report or .zip report found at '{args[sourceIndex + 1]}'.");
                     Environment.ExitCode = 2;
                     Shutdown();
                     return;
@@ -56,6 +58,14 @@ public partial class App : Application
                 var result = RebootAnalyzer.Analyze(range, location);
                 var entries = result.Entries.Where(x => includeSleep || x.Category != RebootCategory.Sleep);
                 var label = fromIndex >= 0 || toIndex >= 0 ? range.Label : days is int dd ? $"last {dd} days" : "everything";
+                if (ReportBundle.IsBundlePath(path))
+                {
+                    // .zip: the re-openable CSV plus every crash dump the entries point to.
+                    ReportBundle.Write(path, ReportBundle.PlanFor(entries, location.MapPath));
+                    Environment.ExitCode = 0;
+                    Shutdown();
+                    return;
+                }
                 var text = path.EndsWith(".csv", StringComparison.OrdinalIgnoreCase) ? TextExporter.ToCsv(entries)
                     : path.EndsWith(".html", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".htm", StringComparison.OrdinalIgnoreCase)
                         ? TextExporter.ToHtml(result, entries, label)
@@ -90,7 +100,13 @@ public partial class App : Application
         };
 
         ThemeManager.Initialize();
-        var window = new MainWindow();
+
+        // "WhyDidIReboot.exe report.zip" (or --source <path>) opens that report or installation instead of this PC's logs.
+        var openIndex = Array.FindIndex(args, a => a.Equals("--source", StringComparison.OrdinalIgnoreCase));
+        var open = openIndex >= 0 && openIndex + 1 < args.Length ? args[openIndex + 1]
+            : args.Length > 0 && !args[0].StartsWith("--", StringComparison.Ordinal) ? args[0] : null;
+
+        var window = new MainWindow(open);
         MainWindow = window;
         window.Show();
     }

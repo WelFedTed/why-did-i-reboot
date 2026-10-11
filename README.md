@@ -27,7 +27,7 @@ Settings (the cog in the header) holds the theme picker, the log source, the sea
 - **Unexpected stops explained**: distinguishes a held power button, power lost while asleep, a firmware-reported hardware error, and a plain freeze/reset.
 - **Live kernel events** (GPU hangs, resource timeouts) that did *not* reboot the machine, because they often precede the crash that does.
 - **Filters**: toggle categories, quick presets (everything / reboots only / problems only / none), free-text search across titles, KB numbers, STOP codes and raw messages, and a date range from 7 days to the whole log.
-- **Export** what is shown as a self-contained `.html` report (same cards, category chips, presets and search with highlighting, all working offline; follows the reader's light/dark preference; prints cleanly), a `.txt` report or `.csv`, or copy a single entry to the clipboard. Also works headless from the command line.
+- **Export** what is shown as a self-contained `.html` report (same cards, category chips, presets and search with highlighting, all working offline; follows the reader's light/dark preference; prints cleanly), a `.txt` report, a `.csv`, or a `.zip` that also holds the crash dumps, or copy a single entry to the clipboard. Also works headless from the command line.
 - **Light and dark themes**: follows the Windows app theme by default, or pick Light / Dark in Settings (the cog in the header). The choice is remembered in `%LocalAppData%\WhyDidIReboot\settings.json`.
 - **Installed updates**: a card lists each update installed shortly before the restart, grouped into Windows, Security, Drivers, Apps and Other, with its short description and classification from Windows Update history, a *failed* marker where installation failed, and a link to the Microsoft Support (KB) article. Blue screen cards link to the Microsoft Learn page for the STOP code.
 - **Driver labels**: known driver file names are explained inline, e.g. `nvlddmkm.sys (NVIDIA kernel-mode display driver)`.
@@ -37,7 +37,8 @@ Settings (the cog in the header) holds the theme picker, the log source, the sea
 - **Right-click any card** for the same actions: copy, open dump folder, debug, search, ask AI.
 - **Any period**: last 7 / 30 / 90 days, last year, everything, or a custom from/to range. Headless: `--days N`, `--days all`, or `--from yyyy-MM-dd --to yyyy-MM-dd`.
 - **Logs from another Windows installation**: Settings (the cog, or **F9**) → *Open logs…*, then pick a second drive, its Windows folder, or a copied `winevt\Logs` folder. Crash dump paths are checked on that drive. Also `--source <folder>` on the command line, or drop the folder onto the window.
-- **Saved reports**: the CSV export keeps every card field, and can be re-opened later from Settings → *Open CSV…*, with `--source report.csv`, or by dropping the file onto the window.
+- **Saved reports**: the CSV export keeps every card field, and can be re-opened later from Settings → *Open report…*, with `--source report.csv`, or by dropping the file onto the window.
+- **Reports that carry their crash dumps**: export as *Report with crash dumps (.zip)* to get the CSV plus the dump file of every card shown. Opened on another PC, *Debug in WinDbg* and *Ask AI* run on those dumps. Windows lets only administrators read most dumps, so the app tells you which ones need the shield button first, and lists what was left out.
 - **Updates**: checks GitHub Releases once at startup (toggle in Settings, on by default) or on demand. When a newer version exists, *Update now* downloads the matching build, verifies the published SHA-256 digest, the executable header and its version, swaps it in beside the running copy and relaunches. Nothing is sent beyond the requests themselves.
 - **Run as administrator**: not needed for normal use, but when the app is not elevated a shield button beside the Settings cog restarts it through the UAC prompt, for crash dumps or another installation's logs that an ordinary account cannot read.
 - Buttons to jump to Event Viewer or straight to a crash dump in Explorer.
@@ -79,7 +80,7 @@ WhyDidIReboot.exe --export report.html --days 90
 WhyDidIReboot.exe --export report.csv --days all --sleep
 ```
 
-The extension picks the format: `.html`, `.txt` or `.csv`. `--days` defaults to 365; `all` reads the entire log. `--sleep` includes sleep/wake cycles, which are hidden by default.
+The extension picks the format: `.html`, `.txt`, `.csv`, or `.zip` for the CSV together with the crash dumps. `WhyDidIReboot.exe report.zip` (or a `.csv`, or another installation's folder) opens it in the window. `--days` defaults to 365; `all` reads the entire log. `--sleep` includes sleep/wake cycles, which are hidden by default.
 
 ## How it decides
 

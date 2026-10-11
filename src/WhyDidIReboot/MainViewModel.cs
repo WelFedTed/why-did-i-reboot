@@ -412,14 +412,95 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ICommand BackToThisPcCommand => _backToThisPc ??= new RelayCommand(async _ => { Location = LogLocation.Local; await RefreshAsync(); }, _ => IsOffline);
     private RelayCommand? _backToThisPc;
 
-    /// <summary>Opens a CSV report this app exported. Returns false if the file is not one of ours.</summary>
+    /// <summary>
+    /// Opens a report this app exported: a .csv, or a .zip that also carries the crash dumps (unpacked
+    /// first, which can take a while for large dumps). Returns false if the file is missing; throws if a
+    /// .zip is not one of ours.
+    /// </summary>
     public async Task<bool> LoadCsvAsync(string path)
     {
-        var resolved = LogLocation.Resolve(path);
+        LogLocation? resolved;
+        if (ReportBundle.IsBundlePath(path))
+        {
+            if (IsAskingAi) return true;   // already packing, unpacking or analysing
+            BusyTitle = "Opening report";
+            BusyText = "Unpacking the crash dumps…";
+            IsAskingAi = true;
+            CommandManager.InvalidateRequerySuggested();
+            try { resolved = await Task.Run(() => LogLocation.Resolve(path)); }
+            finally
+            {
+                BusyText = "";
+                IsAskingAi = false;
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
+        else resolved = LogLocation.Resolve(path);
+
         if (resolved is null || !resolved.IsCsv) return false;
         Location = resolved;
         await RefreshAsync();
         return true;
+    }
+
+    /// <summary>Above this many bytes of dumps, the export asks before packing them.</summary>
+    private const long LargeBundleBytes = 500L * 1024 * 1024;
+
+    /// <summary>
+    /// Saves the entries as a .zip holding the re-openable CSV and every crash dump they point to, so the
+    /// report can be opened on another PC with Debug in WinDbg and Ask AI still working on the right dumps.
+    /// </summary>
+    public async Task ExportBundleAsync(string path, IReadOnlyList<RebootEntry> entries)
+    {
+        if (IsAskingAi) return;
+        var location = _location;
+        var plan = await Task.Run(() => ReportBundle.PlanFor(entries, location.MapPath));
+        if (plan.Unreadable.Count > 0 && CanElevate &&
+            Confirm?.Invoke($"{plan.Unreadable.Count} of the {plan.Unreadable.Count + plan.Dumps.Count} crash dumps for the entries shown can only be read as administrator:\n\n" +
+                            string.Join("\n", plan.Unreadable.Select(u => "• " + u)) +
+                            "\n\nExport without " + (plan.Unreadable.Count == 1 ? "it" : "them") + "?\n\n" +
+                            "To include " + (plan.Unreadable.Count == 1 ? "it" : "them") + ", choose No, restart with the shield button beside Settings, and export again.") == false)
+            return;
+        if (plan.DumpBytes > LargeBundleBytes &&
+            Confirm?.Invoke($"The {plan.Dumps.Count} crash dump{(plan.Dumps.Count == 1 ? "" : "s")} for the entries shown total {AppCache.Size(plan.DumpBytes)}. " +
+                            "Packing them can take a while and the file will be large.\n\nInclude them all?") == false)
+            return;
+
+        BusyTitle = "Exporting";
+        BusyText = plan.Dumps.Count == 0 ? "Writing the report…" : "Packing the crash dumps…";
+        IsAskingAi = true;
+        _askAiCts = new CancellationTokenSource();
+        CommandManager.InvalidateRequerySuggested();
+        try
+        {
+            var progress = new Progress<string>(text => { if (IsAskingAi) BusyText = text; });
+            var token = _askAiCts.Token;
+            var result = await Task.Run(() => ReportBundle.Write(path, plan, progress, token));
+
+            var dumps = result.Dumps == 0
+                ? (result.Skipped.Count == 0 ? "None of the entries shown has a crash dump, so the file holds only the report." : "No crash dumps could be included.")
+                : $"It includes {result.Dumps} crash dump{(result.Dumps == 1 ? "" : "s")} ({AppCache.Size(result.DumpBytes)}).";
+            var skipped = result.Skipped.Count == 0 ? "" :
+                "\n\nNot included:\n" + string.Join("\n", result.Skipped.Select(s => "• " + s));
+            Notify?.Invoke($"Saved {result.Entries} entr{(result.Entries == 1 ? "y" : "ies")} to:\n{path}\n({AppCache.Size(result.FileBytes)})\n\n{dumps}{skipped}" +
+                           "\n\nOpen it on any PC with Settings → Open report…, or by dropping it onto the window.");
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancelled from the overlay; the partial file has been removed.
+        }
+        catch (Exception ex)
+        {
+            Notify?.Invoke("Export failed: " + ex.Message);
+        }
+        finally
+        {
+            _askAiCts?.Dispose();
+            _askAiCts = null;
+            BusyText = "";
+            IsAskingAi = false;
+            CommandManager.InvalidateRequerySuggested();
+        }
     }
 
     // ---------------------------------------------------------------- WinDbg
@@ -552,8 +633,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private string _busyText = "";
     private CancellationTokenSource? _askAiCts;
 
-    /// <summary>True while WinDbg is analysing the dump; the window shows a spinner overlay.</summary>
+    private string _busyTitle = "Ask AI";
+
+    /// <summary>
+    /// True while WinDbg is analysing the dump, or while a report's crash dumps are being packed or
+    /// unpacked; the window shows a spinner overlay with <see cref="BusyTitle"/> and <see cref="BusyText"/>.
+    /// </summary>
     public bool IsAskingAi { get => _isAskingAi; private set { _isAskingAi = value; OnPropertyChanged(); } }
+    public string BusyTitle { get => _busyTitle; private set { _busyTitle = value; OnPropertyChanged(); } }
     public string BusyText { get => _busyText; private set { _busyText = value; OnPropertyChanged(); } }
 
     /// <summary>Runs "!analyze -v" on the dump through WinDbg, then opens the chosen chat service with a prompt built from the output and the card.</summary>
@@ -646,6 +733,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             if (windbg is null) return;
         }
 
+        BusyTitle = "Ask AI";
         IsAskingAi = true;
         BusyText = text is null
             ? "WinDbg is analysing the crash dump… This can take a few minutes the first time while it downloads symbols. Leave the WinDbg window alone."
@@ -859,7 +947,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
             if (location.IsCsv)
             {
+                var withDumps = result.Entries.Count(e => e.DumpExists);
                 CurrentSessionText = $"Showing {result.RecordsRead} entries imported from {location.Display}." +
+                                     (location.BundlePath is null ? "" : $" {withDumps} crash dump{(withDumps == 1 ? "" : "s")} came with it.") +
                                      (result.CurrentBootTime == DateTime.MinValue ? "" : $" Last recorded boot: {Format.When(result.CurrentBootTime)}.");
             }
             else if (location.IsOffline)

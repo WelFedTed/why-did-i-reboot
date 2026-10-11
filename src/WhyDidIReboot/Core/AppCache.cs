@@ -16,9 +16,12 @@ public static class AppCache
     /// <summary>Where Update now downloads and unpacks a release before swapping it in.</summary>
     public static string UpdateDownloadDir => Path.Combine(Path.GetTempPath(), "WhyDidIReboot-update");
 
-    /// <summary>Every cache folder: all places a WinDbg analysis may have been written, plus the update downloads.</summary>
+    /// <summary>
+    /// Every cache folder: all places a WinDbg analysis may have been written, the update downloads, and
+    /// the crash dumps unpacked from opened report bundles (an open bundle is unpacked again when needed).
+    /// </summary>
     public static IEnumerable<string> Folders() =>
-        WinDbgLocator.AnalysisDirCandidates().Append(UpdateDownloadDir).Distinct(StringComparer.OrdinalIgnoreCase);
+        WinDbgLocator.AnalysisDirCandidates().Append(UpdateDownloadDir).Append(ReportBundle.DefaultCacheRoot).Distinct(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Counts the files in the folders that exist.</summary>
     public static Summary Measure(IEnumerable<string> folders)

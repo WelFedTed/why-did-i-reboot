@@ -66,13 +66,13 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
-                            <TextBlock Text="A saved CSV report" Foreground="{DynamicResource TextPrimary}"/>
-                            <TextBlock Text="Re-open a .csv exported by this app, with every card intact. You can also drop a .csv or a Windows folder onto the main window." Foreground="{DynamicResource TextMuted}" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                            <TextBlock Text="A saved report" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="Re-open a .csv exported by this app, or a .zip that also carries the crash dumps (from this or another PC). You can also drop either, or a Windows folder, onto the main window." Foreground="{DynamicResource TextMuted}" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Style="{StaticResource ToolButton}" Margin="0" VerticalAlignment="Center" Click="Csv_Click" AutomationProperties.Name="Open CSV report">
+                        <Button Grid.Column="1" Style="{StaticResource ToolButton}" Margin="0" VerticalAlignment="Center" Click="Csv_Click" AutomationProperties.Name="Open saved report">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE8A5;" FontFamily="{StaticResource IconFont}" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="Open CSV…"/>
+                                <TextBlock Text="Open report…"/>
                             </StackPanel>
                         </Button>
                     </Grid>
@@ -131,7 +131,7 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
                             <TextBlock Text="Saved analyses and downloads" Foreground="{DynamicResource TextPrimary}"/>
-                            <TextBlock Text="WinDbg analyses that Ask AI reuses, leftover update downloads and recently read Windows Update history. After clearing, Ask AI runs WinDbg again." Foreground="{DynamicResource TextMuted}" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                            <TextBlock Text="WinDbg analyses that Ask AI reuses, crash dumps unpacked from opened reports, leftover update downloads and recently read Windows Update history. After clearing, Ask AI runs WinDbg again." Foreground="{DynamicResource TextMuted}" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"/>
                             <TextBlock Text="{Binding CacheStatus}" Foreground="{DynamicResource TextPrimary}" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap"
                                        AutomationProperties.AutomationId="CacheStatus"/>
                         </StackPanel>

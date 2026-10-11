@@ -347,6 +347,43 @@ public class AnalyzerTests
         Assert.Equal(TimeSpan.FromMinutes(3), e.Downtime);
     }
 
+    [Theory]
+    // Written by a US-format system (M/d/y) and by a d/M/y one; both mean 4 October 2026, whatever the reader's own format.
+    [InlineData("11:43:36 PM", "10/4/2026")]
+    [InlineData("11:43:36 PM", "4/10/2026")]
+    [InlineData("23:43:36", "‎4/‎10/‎2026")]
+    [InlineData("23:43:36", "2026-10-04")]
+    public void Unexpected_shutdown_date_is_read_in_the_order_that_fits_the_boot_not_the_readers_locale(string time, string date)
+    {
+        var crashedAt = new DateTime(2026, 10, 4, 23, 43, 36);
+        var boot = crashedAt.AddSeconds(39);
+        var e6008 = Ev(boot.AddSeconds(11), EventLogSource.EventLogSvc, 6008, new() { ["param1"] = time, ["param2"] = date });
+        var events = new List<RawEvent> { Boot(crashedAt.AddHours(-9)), Boot(boot), e6008 };
+
+        foreach (var reader in new[] { "en-AU", "en-US", "de-DE" })
+        {
+            var previous = global::System.Globalization.CultureInfo.CurrentCulture;
+            global::System.Globalization.CultureInfo.CurrentCulture = global::System.Globalization.CultureInfo.GetCultureInfo(reader);
+            try
+            {
+                var e = Reboots(events).Last();
+                Assert.Equal(crashedAt, e.ShutdownTime);
+                Assert.Equal(TimeSpan.FromSeconds(39), e.Downtime);
+            }
+            finally { global::System.Globalization.CultureInfo.CurrentCulture = previous; }
+        }
+    }
+
+    [Fact]
+    public void An_unexpected_shutdown_date_that_cannot_be_before_the_boot_is_left_unknown()
+    {
+        var boot = new DateTime(2026, 10, 4, 23, 44, 15);
+        // 25 December is after the boot in either order, so the record is not about this boot's shutdown.
+        var e6008 = Ev(boot.AddSeconds(11), EventLogSource.EventLogSvc, 6008, new() { ["param1"] = "11:43:36 PM", ["param2"] = "12/25/2026" });
+        var e = Reboots(new List<RawEvent> { Boot(boot.AddHours(-9)), Boot(boot), e6008 }).Last();
+        Assert.Null(e.ShutdownTime);
+    }
+
     [Fact]
     public void Events_out_of_order_give_the_same_cards_as_sorted_ones()
     {
