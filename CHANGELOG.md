@@ -8,6 +8,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-10-13
+
 ### Changed
 - Export opens on *Report with crash dumps (.zip)* instead of HTML. The other formats are still in the type list.
 
@@ -173,7 +175,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - Export to text or CSV, copy a single entry, open Event Viewer, and jump to a crash dump in Explorer.
 - Headless `--export` mode for scripts.
 
-[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.10.0...v0.11.0
