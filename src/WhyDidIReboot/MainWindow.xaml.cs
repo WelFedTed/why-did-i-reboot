@@ -118,9 +118,10 @@ public partial class MainWindow : Window
         {
             Title = "Export reboot history",
             FileName = $"why-did-i-reboot-{subject}-{DateTime.Now:yyyyMMdd-HHmm}",
-            Filter = "HTML report (*.html)|*.html|Text report (*.txt)|*.txt|CSV report, re-openable in this app (*.csv)|*.csv" +
-                     "|Report with crash dumps, re-openable on any PC (*.zip)|*.zip",
-            DefaultExt = ".html",
+            // The first type is the one the dialog opens on: the report that carries its crash dumps.
+            Filter = "Report with crash dumps, re-openable on any PC (*.zip)|*.zip" +
+                     "|HTML report (*.html)|*.html|Text report (*.txt)|*.txt|CSV report, re-openable in this app (*.csv)|*.csv",
+            DefaultExt = ".zip",
         };
         if (dialog.ShowDialog(this) != true) return;
 

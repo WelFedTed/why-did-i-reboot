@@ -8,6 +8,9 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+### Changed
+- Export opens on *Report with crash dumps (.zip)* instead of HTML. The other formats are still in the type list.
+
 ## [0.13.0] - 2026-10-12
 
 ### Added
