@@ -173,6 +173,9 @@ public sealed class AnalysisOptions
     /// <summary>Rewrites paths found in the log (dump files) before checking whether they exist.</summary>
     public Func<string, string> MapPath { get; init; } = p => p;
 
+    /// <summary>Reads a crash dump for the driver it points to; injectable for tests.</summary>
+    public Func<string, (KernelDumpInfo? Info, DumpReadStatus Status)> ReadDump { get; init; } = KernelDump.TryRead;
+
     /// <summary>Windows Update history keyed by KB number ("KB5094126"), used to describe updates on cards.</summary>
     public IReadOnlyDictionary<string, UpdateDetails> UpdateDetails { get; init; } =
         new Dictionary<string, UpdateDetails>(StringComparer.OrdinalIgnoreCase);

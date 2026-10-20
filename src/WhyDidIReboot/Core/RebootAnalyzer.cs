@@ -264,6 +264,7 @@ public static class RebootAnalyzer
                 title = $"Crashed with a blue screen: {name}";
                 dumpPath = bugcheck?.Get("param2", 1);
                 dumpExists = !string.IsNullOrWhiteSpace(dumpPath) && File.Exists(options.MapPath(dumpPath));
+                var causedBy = CausedBy(dumpExists ? dumpPath : null, options);
                 links.Add(new LinkItem($"STOP 0x{code:X} on Microsoft Learn", BugcheckCatalog.Url(code)));
                 summary = $"Windows hit a fatal error (STOP 0x{code:X8}) and restarted itself. " +
                           (hint is not null ? hint + " " : "") +
@@ -271,12 +272,14 @@ public static class RebootAnalyzer
                               ? "No crash dump file was recorded."
                               : dumpExists
                                   ? $"A crash dump was saved to {dumpPath}."
-                                  : $"A crash dump was written to {dumpPath} but the file is no longer there.");
+                                  : $"A crash dump was written to {dumpPath} but the file is no longer there.") +
+                          (causedBy.Sentence is { } blame ? " " + blame : "");
                 if (e1074 is not null)
                     summary += $" It happened while a {ActionVerbNoun(e1074.Get("param5", 4))} requested by {FriendlyProcess(e1074.Get("param1", 0))} was in progress, so a driver most likely failed during shutdown.";
                 else if (lastSleep is not null && (lastWake is null || lastWake.Time < lastSleep.Time))
                     summary += " The PC was asleep or going to sleep at the time, so a driver most likely failed during the sleep or wake transition.";
                 Detail("STOP code", $"0x{code:X8} ({name})");
+                Detail(CausedByDetail, causedBy.Detail);
                 if (kp41 is not null)
                     Detail("Parameters", string.Join(", ", Enumerable.Range(1, 4).Select(n => kp41.Get($"BugcheckParameter{n}", n))));
                 else if (bugcheck is not null)
@@ -506,12 +509,11 @@ public static class RebootAnalyzer
                     when = parsed;
             }
 
-            var details = new List<KeyValuePair<string, string>>
-            {
-                new("Live kernel event code", $"0x{code:X} ({name})"),
-                new("Parameters", string.Join(", ", new[] { e.Get("P2"), e.Get("P3"), e.Get("P4"), e.Get("P5") }.Where(s => s.Length > 0))),
-            };
             var dumpExists = dump is not null && File.Exists(options.MapPath(dump));
+            var causedBy = CausedBy(dumpExists ? dump : null, options);
+            var details = new List<KeyValuePair<string, string>> { new("Live kernel event code", $"0x{code:X} ({name})") };
+            if (causedBy.Detail is not null) details.Add(new(CausedByDetail, causedBy.Detail));
+            details.Add(new("Parameters", string.Join(", ", new[] { e.Get("P2"), e.Get("P3"), e.Get("P4"), e.Get("P5") }.Where(s => s.Length > 0))));
             if (dump is not null) details.Add(new("Dump file", dump + (dumpExists ? "" : " (no longer present)")));
             if (when != e.Time) details.Add(new("First reported to Windows Error Reporting", Format.When(e.Time)));
             if (retries > 0) details.Add(new("Report re-filed by Windows Error Reporting", $"{retries} more time(s), last on {Format.WhenShort(group.Last().Time)}"));
@@ -521,7 +523,9 @@ public static class RebootAnalyzer
                 Timestamp = when,
                 Category = RebootCategory.LiveKernelEvent,
                 Title = $"Kernel problem recorded without a reboot ({name})",
-                Summary = $"Windows kept running, but captured a live kernel report (code 0x{code:X}). {hint} These often precede a real crash, so repeated ones are worth investigating.",
+                Summary = $"Windows kept running, but captured a live kernel report (code 0x{code:X}). {hint}" +
+                          (causedBy.Sentence is { } blame ? " " + blame : "") +
+                          " These often precede a real crash, so repeated ones are worth investigating.",
                 DumpPath = dump,
                 Details = details,
                 Evidence = new List<EvidenceEvent> { e.ToEvidence() },
@@ -529,6 +533,25 @@ public static class RebootAnalyzer
                 DumpExists = dumpExists,
             };
         }
+    }
+
+    /// <summary>The detail row naming the driver a crash dump points to, placed right after the bugcheck code.</summary>
+    public const string CausedByDetail = "Caused by driver";
+
+    /// <summary>
+    /// What the dump at <paramref name="dumpPath"/> blames: the detail row value and a sentence for the summary
+    /// (only for a driver outside the Windows core; "the kernel crashed" says little on its own).
+    /// </summary>
+    private static (string? Detail, string? Sentence) CausedBy(string? dumpPath, AnalysisOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(dumpPath)) return (null, null);
+        var (info, status) = options.ReadDump(options.MapPath(dumpPath));
+        if (status == DumpReadStatus.AccessDenied)
+            return ("unknown: Windows lets only administrators read this dump (restart with the shield button to see it)", null);
+        if (info?.CausedByDriver is not { } driver) return (null, null);
+        return info.BlamesCore
+            ? ($"{driver}; no other driver was involved, so the dump does not single one out", null)
+            : (driver, $"The crash dump points to {driver} as the cause.");
     }
 
     private static string? FirstDump(string attachedFiles) =>

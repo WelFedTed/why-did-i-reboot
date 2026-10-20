@@ -8,6 +8,12 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+### Added
+- **Caused by driver.** Blue screen and live kernel cards read the crash dump itself (no WinDbg needed) and show the driver it points to in a *Caused by driver* row right after the STOP code, like BlueScreenView, e.g. `myfault.sys` for a `DRIVER_IRQL_NOT_LESS_OR_EQUAL`. The summary names it too. The driver is taken from a code address in the bugcheck parameters or on the crashing thread's stack, skipping Windows' own kernel and HAL; when only those are involved the row says so instead of blaming Windows. Windows lets only administrators read most dumps, so without elevation the row says to restart with the shield button.
+
+### Changed
+- The web search on crash cards starts with the driver the dump points to: `DRIVER_IRQL_NOT_LESS_OR_EQUAL 0xD1 myfault.sys`.
+
 ## [0.13.1] - 2026-10-13
 
 ### Changed

@@ -18,6 +18,7 @@ public static partial class DriverCatalog
         ["dxgkrnl.sys"] = "DirectX graphics kernel",
         ["dxgmms2.sys"] = "DirectX graphics memory manager",
         ["watchdog.sys"] = "Windows watchdog timer driver",
+        ["myfault.sys"] = "Sysinternals NotMyFault test driver, used to crash Windows on purpose",
         ["wdf01000.sys"] = "Windows Driver Framework runtime",
         ["ACPI.sys"] = "ACPI firmware interface driver",
         ["pci.sys"] = "PCI bus driver",

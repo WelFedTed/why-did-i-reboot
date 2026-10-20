@@ -34,8 +34,9 @@ public static partial class WebSearch
     private static readonly string[] CodeDetailKeys = { "STOP code", "Live kernel event code" };
 
     /// <summary>
-    /// e.g. "DRIVER_POWER_STATE_FAILURE 0x9F iaStorAC.sys pci.sys", or null when the card has no bugcheck code.
-    /// Driver names come from the summary, details and log records, most recently mentioned first, at most three.
+    /// e.g. "DRIVER_IRQL_NOT_LESS_OR_EQUAL 0xD1 myfault.sys", or null when the card has no bugcheck code.
+    /// The driver the crash dump blames comes first, then other driver names from the summary, details and
+    /// log records in the order they appear, at most three in all.
     /// </summary>
     public static string? QueryFor(RebootEntry e)
     {
@@ -48,7 +49,9 @@ public static partial class WebSearch
         if (code == "0x") code = "0x0";
         var name = m.Groups[2].Value;
 
-        var texts = new List<string> { e.Summary };
+        var texts = new List<string>();
+        texts.AddRange(e.Details.Where(d => d.Key == RebootAnalyzer.CausedByDetail).Select(d => d.Value));
+        texts.Add(e.Summary);
         texts.AddRange(e.Details.Select(d => d.Value));
         texts.AddRange(e.Evidence.Select(v => v.Message));
         var drivers = texts
