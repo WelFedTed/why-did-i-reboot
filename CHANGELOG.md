@@ -8,6 +8,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-20
+
 ### Added
 - **Caused by driver.** Blue screen and live kernel cards read the crash dump itself (no WinDbg needed) and show the driver it points to in a *Caused by driver* row right after the STOP code, like BlueScreenView, e.g. `myfault.sys` for a `DRIVER_IRQL_NOT_LESS_OR_EQUAL`. The summary names it too. The driver is taken from a code address in the bugcheck parameters or on the crashing thread's stack, skipping Windows' own kernel and HAL; when only those are involved the row says so instead of blaming Windows. Windows lets only administrators read most dumps, so without elevation the row says to restart with the shield button.
 
@@ -181,7 +183,8 @@ When a `vX.Y.Z` tag is pushed, the release workflow copies the matching `## [X.Y
 - Export to text or CSV, copy a single entry, open Event Viewer, and jump to a crash dump in Explorer.
 - Headless `--export` mode for scripts.
 
-[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.13.1...HEAD
+[Unreleased]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.13.1...v0.14.0
 [0.13.1]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/WelFedTed/why-did-i-reboot/compare/v0.11.0...v0.12.0
